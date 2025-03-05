@@ -22,12 +22,19 @@ const Calendar: React.FC = () => {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const productsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        expiryDate: doc.data().expiryDate.toDate()
-      })) as Product[];
+      console.log('Données reçues de Firebase:', snapshot.size, 'produits');
+      const productsData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('Produit:', data);
+        return {
+          id: doc.id,
+          ...data,
+          expiryDate: data.expiryDate.toDate()
+        };
+      }) as Product[];
       setProducts(productsData);
+    }, (error) => {
+      console.error('Erreur lors de la récupération des données:', error);
     });
 
     return () => unsubscribe();
@@ -52,6 +59,8 @@ const Calendar: React.FC = () => {
         return acc;
       }, {} as Record<string, Product[]>)
     : { [demoProduct.expiryDate.toISOString().split('T')[0]]: [demoProduct] };
+
+  console.log('Produits groupés:', groupedProducts);
 
   const sortedDates = Object.keys(groupedProducts).sort();
 
