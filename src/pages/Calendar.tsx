@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import Modal from '../components/Modal';
-import Scanner from './Scanner';
 
 interface Product {
   id: string;
@@ -15,7 +13,6 @@ interface Product {
 const Calendar: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   useEffect(() => {
     console.log('Page Calendrier chargée');
@@ -62,13 +59,7 @@ const Calendar: React.FC = () => {
     <div className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Calendrier des DLC</h1>
-          <button
-            onClick={() => setIsScannerOpen(true)}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-          >
-            Scanner un produit
-          </button>
+          <h1 className="text-2xl font-bold text-gray-800">Calendrier des DLC - Surgelés</h1>
         </div>
 
         <div className="mb-6">
@@ -125,14 +116,6 @@ const Calendar: React.FC = () => {
           ))}
         </div>
       </div>
-
-      <Modal
-        isOpen={isScannerOpen}
-        onClose={() => setIsScannerOpen(false)}
-        title="Scanner un produit"
-      >
-        <Scanner onClose={() => setIsScannerOpen(false)} />
-      </Modal>
     </div>
   );
 };
