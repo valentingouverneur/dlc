@@ -1,0 +1,140 @@
+import React, { useState, useEffect } from 'react';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '../config/firebase';
+import Modal from '../components/Modal';
+import Scanner from './Scanner';
+
+interface Product {
+  id: string;
+  name: string;
+  brand: string;
+  expiryDate: Date;
+  imageUrl?: string;
+}
+
+const Calendar: React.FC = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  useEffect(() => {
+    console.log('Page Calendrier chargée');
+    const q = query(
+      collection(db, 'products'),
+      orderBy('expiryDate', 'asc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const productsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        expiryDate: doc.data().expiryDate.toDate()
+      })) as Product[];
+      setProducts(productsData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Produit de démonstration
+  const demoProduct: Product = {
+    id: 'demo-1',
+    name: 'Yaourt Nature',
+    brand: 'Danone',
+    expiryDate: new Date(),
+    imageUrl: 'https://placehold.co/400x400/png?text=Yaourt'
+  };
+
+  const groupedProducts = products.length > 0 
+    ? products.reduce((acc, product) => {
+        const date = product.expiryDate.toISOString().split('T')[0];
+        if (!acc[date]) {
+          acc[date] = [];
+        }
+        acc[date].push(product);
+        return acc;
+      }, {} as Record<string, Product[]>)
+    : { [demoProduct.expiryDate.toISOString().split('T')[0]]: [demoProduct] };
+
+  const sortedDates = Object.keys(groupedProducts).sort();
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Calendrier des DLC</h1>
+          <button
+            onClick={() => setIsScannerOpen(true)}
+            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Scanner un produit
+          </button>
+        </div>
+
+        <div className="mb-6">
+          <div className="relative">
+            <input
+              type="date"
+              value={selectedDate.toISOString().split('T')[0]}
+              onChange={(e) => setSelectedDate(new Date(e.target.value))}
+              className="w-full p-3 bg-white border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          {sortedDates.map((date) => (
+            <div key={date} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-6 py-4 bg-gray-50 border-b border-gray-100">
+                <h2 className="font-semibold text-gray-700 text-lg">
+                  {new Date(date).toLocaleDateString('fr-FR', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </h2>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {groupedProducts[date].map((product) => (
+                  <div
+                    key={product.id}
+                    className="flex items-center gap-6 p-6 hover:bg-gray-50 transition-colors"
+                  >
+                    {product.imageUrl && (
+                      <div className="w-24 h-24 bg-white rounded-lg p-2 flex items-center justify-center border border-gray-100">
+                        <img
+                          src={product.imageUrl}
+                          alt={product.name}
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            console.error('Erreur de chargement de l\'image:', e);
+                            e.currentTarget.src = 'https://placehold.co/400x400/png?text=Image+non+disponible';
+                          }}
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <h3 className="font-medium text-xl text-gray-800 mb-1">{product.name}</h3>
+                      <p className="text-sm text-gray-600">{product.brand}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Modal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        title="Scanner un produit"
+      >
+        <Scanner onClose={() => setIsScannerOpen(false)} />
+      </Modal>
+    </div>
+  );
+};
+
+export default Calendar; 
