@@ -6,7 +6,7 @@ interface Product {
   id: string;
   name: string;
   brand: string;
-  expiryDate: Date;
+  expiryDate: string;
   imageUrl?: string;
 }
 
@@ -16,6 +16,7 @@ const Calendar: React.FC = () => {
 
   useEffect(() => {
     console.log('Page Calendrier chargée');
+    
     const q = query(
       collection(db, 'products'),
       orderBy('expiryDate', 'asc')
@@ -23,15 +24,11 @@ const Calendar: React.FC = () => {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       console.log('Données reçues de Firebase:', snapshot.size, 'produits');
-      const productsData = snapshot.docs.map(doc => {
-        const data = doc.data();
-        console.log('Produit:', data);
-        return {
-          id: doc.id,
-          ...data,
-          expiryDate: data.expiryDate.toDate()
-        };
-      }) as Product[];
+      const productsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Product[];
+      console.log('Produits récupérés:', productsData);
       setProducts(productsData);
     }, (error) => {
       console.error('Erreur lors de la récupération des données:', error);
@@ -40,25 +37,16 @@ const Calendar: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Produit de démonstration
-  const demoProduct: Product = {
-    id: 'demo-1',
-    name: 'Yaourt Nature',
-    brand: 'Danone',
-    expiryDate: new Date(),
-    imageUrl: 'https://placehold.co/400x400/png?text=Yaourt'
-  };
-
   const groupedProducts = products.length > 0 
     ? products.reduce((acc, product) => {
-        const date = product.expiryDate.toISOString().split('T')[0];
+        const date = new Date(product.expiryDate).toISOString().split('T')[0];
         if (!acc[date]) {
           acc[date] = [];
         }
         acc[date].push(product);
         return acc;
       }, {} as Record<string, Product[]>)
-    : { [demoProduct.expiryDate.toISOString().split('T')[0]]: [demoProduct] };
+    : {};
 
   console.log('Produits groupés:', groupedProducts);
 
