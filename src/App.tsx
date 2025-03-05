@@ -7,6 +7,7 @@ import ProductDetails from './pages/ProductDetails';
 import Navbar from './components/Navbar';
 import Modal from './components/Modal';
 import FloatingScannerButton from './components/FloatingScannerButton';
+import MobileBlurEffect from './components/MobileBlurEffect';
 
 function App() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -22,6 +23,7 @@ function App() {
             <Route path="/product/:id" element={<ProductDetails />} />
           </Routes>
         </div>
+        <MobileBlurEffect />
         <FloatingScannerButton onClick={() => setIsScannerOpen(true)} />
 
         <Modal
