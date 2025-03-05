@@ -1,18 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../config/firebase';
-
-interface Product {
-  id: string;
-  name: string;
-  brand: string;
-  expiryDate: string;
-  imageUrl?: string;
-}
+import { Link } from 'react-router-dom';
+import ConfirmModal from '../components/ConfirmModal';
+import { Product } from '../types/Product';
 
 const Calendar: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   useEffect(() => {
     console.log('Page Calendrier chargée');
@@ -36,6 +33,15 @@ const Calendar: React.FC = () => {
 
     return () => unsubscribe();
   }, []);
+
+  const handleDelete = async (productId: string) => {
+    try {
+      await deleteDoc(doc(db, 'products', productId));
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      alert('Erreur lors de la suppression du produit');
+    }
+  };
 
   const groupedProducts = products.length > 0 
     ? products.reduce((acc, product) => {
@@ -72,39 +78,53 @@ const Calendar: React.FC = () => {
 
         <div className="space-y-6">
           {sortedDates.map((date) => (
-            <div key={date} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-6 py-4 bg-gray-50 border-b border-gray-100">
-                <h2 className="font-semibold text-gray-700 text-lg">
-                  {new Date(date).toLocaleDateString('fr-FR', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </h2>
-              </div>
-              <div className="divide-y divide-gray-100">
+            <div key={date} className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {new Date(date).toLocaleDateString('fr-FR', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </h3>
+              <div className="space-y-4">
                 {groupedProducts[date].map((product) => (
                   <div
                     key={product.id}
-                    className="flex items-center gap-6 p-6 hover:bg-gray-50 transition-colors"
+                    className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow"
                   >
-                    {product.imageUrl && (
-                      <div className="w-24 h-24 bg-white rounded-lg p-2 flex items-center justify-center border border-gray-100">
-                        <img
-                          src={product.imageUrl}
-                          alt={product.name}
-                          className="w-full h-full object-contain"
-                          onError={(e) => {
-                            console.error('Erreur de chargement de l\'image:', e);
-                            e.currentTarget.src = 'https://placehold.co/400x400/png?text=Image+non+disponible';
-                          }}
-                        />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <h3 className="font-medium text-xl text-gray-800 mb-1">{product.name}</h3>
-                      <p className="text-sm text-gray-600">{product.brand}</p>
+                    <div className="flex items-center justify-between">
+                      <Link to={`/product/${product.id}`} className="flex items-center space-x-4 flex-1">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-16 h-16 object-contain"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 flex items-center justify-center bg-gray-100 rounded-lg">
+                            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">{product.name}</h4>
+                          <p className="text-sm text-gray-500">{product.brand}</p>
+                        </div>
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setProductToDelete(product);
+                          setDeleteModalOpen(true);
+                        }}
+                        className="ml-4 p-2 text-gray-400 hover:text-red-500 transition-colors"
+                        title="Supprimer le produit"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -113,6 +133,18 @@ const Calendar: React.FC = () => {
           ))}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={() => {
+          if (productToDelete?.id) {
+            handleDelete(productToDelete.id);
+          }
+        }}
+        title="Supprimer le produit"
+        message={`Êtes-vous sûr de vouloir supprimer ${productToDelete?.name} ? Cette action est irréversible.`}
+      />
     </div>
   );
 };
