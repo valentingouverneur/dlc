@@ -106,66 +106,44 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
     console.log('Tentative de sauvegarde avec:', { product, expiryDate });
     if (!product || !expiryDate) {
       console.log('Données manquantes:', { product: !!product, expiryDate: !!expiryDate });
+      setError('Veuillez remplir tous les champs obligatoires');
       return;
     }
 
     try {
-      console.log('Données à sauvegarder:', {
-        name: product.product_name || 'Produit inconnu',
-        brand: product.brands || 'Marque inconnue',
-        barcode,
-        expiryDate: new Date(expiryDate),
-        imageUrl: product.image_url
-      });
-
-      const docRef = await addDoc(collection(db, 'products'), {
+      const productData = {
         name: product.product_name || 'Produit inconnu',
         brand: product.brands || 'Marque inconnue',
         barcode: barcode,
-        expiryDate: new Date(expiryDate),
+        expiryDate: new Date(expiryDate).toISOString(),
         imageUrl: product.image_url,
-        createdAt: new Date(),
-        // Informations nutritionnelles
+        createdAt: new Date().toISOString(),
+        // Informations nutritionnelles simplifiées
         nutrition: product.nutriments ? {
-          calories: product.nutriments['energy-kcal_100g'],
-          proteins: product.nutriments.proteins_100g,
-          carbohydrates: product.nutriments.carbohydrates_100g,
-          fat: product.nutriments.fat_100g,
-          fiber: product.nutriments.fiber_100g,
-          salt: product.nutriments.salt_100g
-        } : undefined,
-        // Informations supplémentaires
-        quantity: product.quantity,
-        categories: product.categories_tags?.map((c: string) => c.replace('fr:', '')),
-        ingredients: product.ingredients_text_fr 
-          ? product.ingredients_text_fr.split(',').map((i: string) => i.trim())
-          : undefined,
-        allergens: product.allergens_tags
-          ? product.allergens_tags.map((a: string) => a.replace('fr:', ''))
-          : undefined,
-        labels: product.labels_tags
-          ? product.labels_tags.map((l: string) => l.replace('fr:', ''))
-          : undefined,
-        ecoScore: product.ecoscore_grade,
-        novaGroup: product.nova_group,
-        nutriscore: product.nutriscore_grade,
-        // Informations de traçabilité
-        origins: product.origins_tags?.map((o: string) => o.replace('fr:', '')),
-        manufacturingPlaces: product.manufacturing_places_tags,
-        packaging: product.packaging_tags,
-        // Informations de conservation
-        storageConditions: product.storage_conditions,
-        // Informations de consommation
-        servingSize: product.serving_size,
-        preparationInstructions: product.preparation_instructions
-      });
+          calories: product.nutriments['energy-kcal_100g'] || 0,
+          proteins: product.nutriments.proteins_100g || 0,
+          carbohydrates: product.nutriments.carbohydrates_100g || 0,
+          fat: product.nutriments.fat_100g || 0,
+        } : null,
+        // Informations de base uniquement
+        quantity: product.quantity || '',
+        categories: product.categories_tags ? 
+          product.categories_tags.map((c: string) => c.replace('fr:', '')).filter(Boolean) : 
+          [],
+        ingredients: product.ingredients_text_fr ? 
+          product.ingredients_text_fr.split(',').map((i: string) => i.trim()).filter(Boolean) : 
+          []
+      };
 
+      console.log('Données à sauvegarder:', productData);
+
+      const docRef = await addDoc(collection(db, 'products'), productData);
       console.log('Produit enregistré avec succès, ID:', docRef.id);
       alert('Produit enregistré avec succès !');
       onClose();
     } catch (err) {
-      console.error('Erreur lors de l\'enregistrement:', err);
-      setError('Erreur lors de l\'enregistrement du produit');
+      console.error('Erreur détaillée lors de l\'enregistrement:', err);
+      setError(`Erreur lors de l'enregistrement : ${err.message || 'Erreur inconnue'}`);
     }
   };
 
