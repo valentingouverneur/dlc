@@ -13,23 +13,56 @@ const ManualProductForm: React.FC<ManualProductFormProps> = ({ onClose }) => {
   const [loading, setLoading] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
   const [takingPhoto, setTakingPhoto] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const startCamera = async () => {
+    setError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' },
-        audio: false 
-      });
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('L\'API MediaDevices n\'est pas disponible sur ce navigateur');
+      }
+
+      const constraints = {
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().catch(err => {
+            setError('Erreur lors du démarrage de la vidéo: ' + err.message);
+          });
+        };
         setTakingPhoto(true);
+      } else {
+        throw new Error('La référence video n\'est pas disponible');
       }
     } catch (err) {
-      console.error('Erreur lors de l\'accès à la caméra:', err);
-      alert('Impossible d\'accéder à la caméra');
+      let errorMessage = 'Impossible d\'accéder à la caméra';
+      
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          errorMessage = 'L\'accès à la caméra a été refusé. Veuillez autoriser l\'accès dans les paramètres de votre navigateur.';
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          errorMessage = 'Aucune caméra n\'a été trouvée sur votre appareil.';
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+          errorMessage = 'La caméra est peut-être utilisée par une autre application.';
+        } else {
+          errorMessage = `Erreur: ${err.message}`;
+        }
+      }
+      
+      setError(errorMessage);
+      setTakingPhoto(false);
     }
   };
 
@@ -43,9 +76,15 @@ const ManualProductForm: React.FC<ManualProductFormProps> = ({ onClose }) => {
   };
 
   const takePhoto = () => {
+    console.log('Tentative de prise de photo...');
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
+      
+      console.log('Dimensions de la vidéo:', {
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight
+      });
       
       // Définir les dimensions du canvas pour correspondre à la vidéo
       canvas.width = video.videoWidth;
@@ -54,15 +93,26 @@ const ManualProductForm: React.FC<ManualProductFormProps> = ({ onClose }) => {
       // Dessiner l'image de la vidéo sur le canvas
       const context = canvas.getContext('2d');
       if (context) {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Convertir le canvas en URL de données
-        const photoUrl = canvas.toDataURL('image/jpeg');
-        setPhoto(photoUrl);
-        
-        // Arrêter la caméra
-        stopCamera();
+        try {
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          // Convertir le canvas en URL de données
+          const photoUrl = canvas.toDataURL('image/jpeg', 0.8);
+          console.log('Photo prise avec succès');
+          setPhoto(photoUrl);
+          
+          // Arrêter la caméra
+          stopCamera();
+        } catch (err) {
+          console.error('Erreur lors de la prise de photo:', err);
+          alert('Erreur lors de la prise de photo');
+        }
       }
+    } else {
+      console.error('Références manquantes:', {
+        video: !!videoRef.current,
+        canvas: !!canvasRef.current
+      });
     }
   };
 
@@ -89,6 +139,12 @@ const ManualProductForm: React.FC<ManualProductFormProps> = ({ onClose }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
+
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700">
           Nom du produit
@@ -165,6 +221,7 @@ const ManualProductForm: React.FC<ManualProductFormProps> = ({ onClose }) => {
                   type="button"
                   onClick={() => {
                     setPhoto(null);
+                    setError(null);
                     startCamera();
                   }}
                   className="absolute top-2 right-2 p-2 bg-black bg-opacity-50 text-white rounded-full"
@@ -177,7 +234,10 @@ const ManualProductForm: React.FC<ManualProductFormProps> = ({ onClose }) => {
             ) : (
               <button
                 type="button"
-                onClick={startCamera}
+                onClick={() => {
+                  setError(null);
+                  startCamera();
+                }}
                 className="w-full h-48 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors"
               >
                 <div className="text-center">
@@ -193,7 +253,6 @@ const ManualProductForm: React.FC<ManualProductFormProps> = ({ onClose }) => {
           </div>
         )}
         
-        {/* Canvas caché pour le traitement de la photo */}
         <canvas ref={canvasRef} style={{ display: 'none' }} />
       </div>
 
