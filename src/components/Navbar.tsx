@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faPlus } from '@fortawesome/free-solid-svg-icons';
-import Modal from './Modal';
+import Modal from '../components/Modal';
 import ManualProductForm from './ManualProductForm';
 
 const Navbar: React.FC = () => {
