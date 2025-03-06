@@ -15,18 +15,12 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [manualMode, setManualMode] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [manualProduct, setManualProduct] = useState({
-    name: '',
-    brand: '',
-    imageUrl: ''
-  });
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   useEffect(() => {
-    if (scanning) {
+    if (!scanning) {
       scannerRef.current = new Html5QrcodeScanner(
         'reader',
         {
@@ -64,7 +58,6 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
     try {
       const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
       if (response.data.status === 1 && response.data.product) {
-        // Préférence pour les images plus récentes
         const productData = response.data.product;
         const imageUrl = productData.image_front_url || 
                         productData.image_url || 
@@ -77,29 +70,12 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
         });
       } else {
         setError('Produit non trouvé dans la base de données OpenFoodFacts');
-        setManualMode(true);
       }
     } catch (err) {
       setError('Erreur lors de la recherche du produit');
-      setManualMode(true);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleManualSubmit = () => {
-    if (!manualProduct.name || !manualProduct.brand) {
-      setError('Veuillez remplir tous les champs obligatoires');
-      return;
-    }
-
-    setProduct({
-      product_name: manualProduct.name,
-      brands: manualProduct.brand,
-      image_url: manualProduct.imageUrl
-    });
-    setManualMode(false);
-    setImageError(false);
   };
 
   const handleSave = async () => {
@@ -118,14 +94,12 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
         expiryDate: new Date(expiryDate).toISOString(),
         imageUrl: product.image_url,
         createdAt: new Date().toISOString(),
-        // Informations nutritionnelles simplifiées
         nutrition: product.nutriments ? {
           calories: product.nutriments['energy-kcal_100g'] || 0,
           proteins: product.nutriments.proteins_100g || 0,
           carbohydrates: product.nutriments.carbohydrates_100g || 0,
           fat: product.nutriments.fat_100g || 0,
         } : null,
-        // Informations de base uniquement
         quantity: product.quantity || '',
         categories: product.categories_tags ? 
           product.categories_tags.map((c: string) => c.replace('fr:', '')).filter(Boolean) : 
@@ -141,9 +115,9 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
       console.log('Produit enregistré avec succès, ID:', docRef.id);
       alert('Produit enregistré avec succès !');
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erreur détaillée lors de l\'enregistrement:', err);
-      setError(`Erreur lors de l'enregistrement : ${err.message || 'Erreur inconnue'}`);
+      setError(`Erreur lors de l'enregistrement : ${err?.message || 'Erreur inconnue'}`);
     }
   };
 
@@ -160,167 +134,79 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
   return (
     <div className="space-y-4">
       {error && <div className="text-red-500 text-center">{error}</div>}
-      <div className="flex justify-center gap-4 mb-4">
-        <button
-          onClick={() => setScanning(!scanning)}
-          className={`px-4 py-2 rounded-lg ${
-            scanning
-              ? 'bg-black hover:bg-gray-800'
-              : 'bg-black hover:bg-gray-800'
-          } text-white transition-colors`}
-        >
-          {scanning ? 'Arrêter le scan' : 'Scanner un code-barres'}
-        </button>
-        <button
-          onClick={() => {
-            setScanning(false);
-            setManualMode(true);
-            setProduct(null);
-            setBarcode('');
-          }}
-          className="px-4 py-2 rounded-lg bg-black hover:bg-gray-800 text-white transition-colors"
-        >
-          Saisir manuellement
-        </button>
-      </div>
-
-      {scanning && (
+      
+      {!product && (
         <div id="reader" className="w-full max-w-md mx-auto" />
       )}
 
-      {!scanning && (
-        <div className="space-y-4">
-          {!manualMode && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Code-barres
-              </label>
-              <input
-                type="text"
-                value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
-                placeholder="Entrez le code-barres"
-              />
-            </div>
-          )}
+      {loading && (
+        <div className="text-center text-gray-600">Chargement...</div>
+      )}
 
-          {loading ? (
-            <div className="text-center text-gray-600">Chargement...</div>
-          ) : manualMode ? (
-            <div className="space-y-4">
-              {error && <div className="text-red-500 text-center">{error}</div>}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nom du produit
-                </label>
-                <input
-                  type="text"
-                  value={manualProduct.name}
-                  onChange={(e) => setManualProduct({ ...manualProduct, name: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
-                  placeholder="Nom du produit"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Marque
-                </label>
-                <input
-                  type="text"
-                  value={manualProduct.brand}
-                  onChange={(e) => setManualProduct({ ...manualProduct, brand: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
-                  placeholder="Marque"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  URL de l'image (optionnel)
-                </label>
-                <input
-                  type="text"
-                  value={manualProduct.imageUrl}
-                  onChange={(e) => setManualProduct({ ...manualProduct, imageUrl: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
-                  placeholder="URL de l'image"
-                />
-              </div>
-              <button
-                onClick={handleManualSubmit}
-                className="w-full bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                Valider les informations
-              </button>
-            </div>
-          ) : product ? (
-            <div className="space-y-4">
-              <div className="flex items-center space-x-4">
-                {product.image_url && (
-                  <div className="relative w-20 h-20">
-                    {imageLoading && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-black"></div>
-                      </div>
-                    )}
-                    {imageError ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
-                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                    ) : (
-                      <img
-                        src={product.image_url}
-                        alt={product.product_name}
-                        className="w-20 h-20 object-contain"
-                        onLoad={handleImageLoad}
-                        onError={handleImageError}
-                        style={{ display: imageLoading ? 'none' : 'block' }}
-                      />
-                    )}
+      {product && !loading && (
+        <div className="space-y-4">
+          <div className="flex items-center space-x-4">
+            {product.image_url && (
+              <div className="relative w-20 h-20">
+                {imageLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-black"></div>
                   </div>
                 )}
-                <div>
-                  <h3 className="font-medium text-gray-900">
-                    {product.product_name}
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    {product.brands}
-                  </p>
-                </div>
+                {imageError ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
+                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                ) : (
+                  <img
+                    src={product.image_url}
+                    alt={product.product_name}
+                    className="w-20 h-20 object-contain"
+                    onLoad={handleImageLoad}
+                    onError={handleImageError}
+                    style={{ display: imageLoading ? 'none' : 'block' }}
+                  />
+                )}
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date de péremption
-                </label>
-                <input
-                  type="date"
-                  value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
-                />
-              </div>
-
-              <button
-                onClick={() => {
-                  console.log('Clic sur Enregistrer');
-                  handleSave();
-                }}
-                className="w-full bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition-colors active:bg-gray-900"
-              >
-                Enregistrer
-              </button>
+            )}
+            <div>
+              <h3 className="font-medium text-gray-900">
+                {product.product_name}
+              </h3>
+              <p className="text-sm text-gray-500">
+                {product.brands}
+              </p>
             </div>
-          ) : (
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Date de péremption
+            </label>
+            <input
+              type="date"
+              value={expiryDate}
+              onChange={(e) => setExpiryDate(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+            />
+          </div>
+
+          <div className="flex justify-end space-x-3">
             <button
-              onClick={() => setScanning(true)}
-              className="w-full bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition-colors"
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
             >
-              Scanner un code-barres
+              Annuler
             </button>
-          )}
+            <button
+              onClick={handleSave}
+              className="px-4 py-2 rounded-lg bg-black hover:bg-gray-800 text-white transition-colors"
+            >
+              Enregistrer
+            </button>
+          </div>
         </div>
       )}
     </div>
