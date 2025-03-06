@@ -189,7 +189,7 @@ const ManualProductForm: React.FC<ManualProductFormProps> = ({ onClose }) => {
         </label>
         
         {takingPhoto ? (
-          <div className="relative bg-black rounded-lg overflow-hidden">
+          <div className="relative bg-black rounded-lg overflow-hidden" style={{ height: '300px' }}>
             <video
               ref={videoRef}
               autoPlay
@@ -198,41 +198,44 @@ const ManualProductForm: React.FC<ManualProductFormProps> = ({ onClose }) => {
               style={{
                 width: '100%',
                 height: '100%',
-                objectFit: 'cover',
-                transform: 'scaleX(-1)'
+                objectFit: 'cover'
               }}
               className="rounded-lg"
             />
-            <button
-              type="button"
-              onClick={takePhoto}
-              className="absolute bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-black text-white rounded-full shadow-lg"
-            >
-              Prendre la photo
-            </button>
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/50 to-transparent">
+              <button
+                type="button"
+                onClick={takePhoto}
+                className="w-full px-4 py-2 bg-white text-black rounded-full shadow-lg font-medium"
+              >
+                Prendre la photo
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-2">
             {photo ? (
-              <div className="relative">
+              <div className="relative" style={{ height: '300px' }}>
                 <img
                   src={photo}
                   alt="Photo du produit"
-                  className="w-full h-48 object-cover rounded-lg"
+                  className="w-full h-full object-cover rounded-lg"
                 />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPhoto(null);
-                    setError(null);
-                    startCamera();
-                  }}
-                  className="absolute top-2 right-2 p-2 bg-black bg-opacity-50 text-white rounded-full"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <div className="absolute top-0 right-0 p-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhoto(null);
+                      setError(null);
+                      startCamera();
+                    }}
+                    className="p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             ) : (
               <button
@@ -241,7 +244,7 @@ const ManualProductForm: React.FC<ManualProductFormProps> = ({ onClose }) => {
                   setError(null);
                   startCamera();
                 }}
-                className="w-full h-48 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors"
+                className="w-full h-[300px] border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors"
               >
                 <div className="text-center">
                   <svg className="mx-auto h-12 w-12" stroke="currentColor" fill="none" viewBox="0 0 48 48">
