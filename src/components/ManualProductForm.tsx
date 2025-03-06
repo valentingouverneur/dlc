@@ -19,6 +19,8 @@ const ManualProductForm: React.FC<ManualProductFormProps> = ({ onClose }) => {
 
   const startCamera = async () => {
     setError(null);
+    setTakingPhoto(true);
+
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('L\'API MediaDevices n\'est pas disponible sur ce navigateur');
@@ -33,19 +35,30 @@ const ManualProductForm: React.FC<ManualProductFormProps> = ({ onClose }) => {
         audio: false
       };
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play().catch(err => {
-            setError('Erreur lors du démarrage de la vidéo: ' + err.message);
-          });
-        };
-        setTakingPhoto(true);
-      } else {
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      if (!videoRef.current) {
         throw new Error('La référence video n\'est pas disponible');
       }
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      videoRef.current.srcObject = stream;
+
+      await new Promise((resolve, reject) => {
+        if (!videoRef.current) {
+          reject(new Error('La référence video a été perdue'));
+          return;
+        }
+
+        videoRef.current.onloadedmetadata = () => {
+          if (videoRef.current) {
+            videoRef.current.play()
+              .then(resolve)
+              .catch(reject);
+          }
+        };
+      });
+
     } catch (err) {
       let errorMessage = 'Impossible d\'accéder à la caméra';
       
