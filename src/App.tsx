@@ -11,6 +11,12 @@ import MobileBlurEffect from './components/MobileBlurEffect';
 
 function App() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleProductAdded = () => {
+    setIsScannerOpen(false);
+    setRefreshKey(prev => prev + 1);
+  };
 
   return (
     <Router>
@@ -18,8 +24,8 @@ function App() {
         <Navbar />
         <div className="container mx-auto px-4 py-8">
           <Routes>
-            <Route path="/" element={<Calendar />} />
-            <Route path="/products" element={<Products />} />
+            <Route path="/" element={<Calendar key={refreshKey} />} />
+            <Route path="/products" element={<Products key={refreshKey} />} />
             <Route path="/product/:id" element={<ProductDetails />} />
           </Routes>
         </div>
@@ -31,7 +37,7 @@ function App() {
           onClose={() => setIsScannerOpen(false)}
           title="Scanner un produit"
         >
-          <Scanner onClose={() => setIsScannerOpen(false)} />
+          <Scanner onClose={handleProductAdded} />
         </Modal>
       </div>
     </Router>
