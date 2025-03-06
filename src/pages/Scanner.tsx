@@ -103,35 +103,22 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
   };
 
   const handleSave = async () => {
-    if (!product || !expiryDate) return;
+    console.log('Tentative de sauvegarde avec:', { product, expiryDate });
+    if (!product || !expiryDate) {
+      console.log('Données manquantes:', { product: !!product, expiryDate: !!expiryDate });
+      return;
+    }
 
     try {
-      // Extraction des informations nutritionnelles
-      const nutrition = product.nutriments ? {
-        calories: product.nutriments['energy-kcal_100g'],
-        proteins: product.nutriments.proteins_100g,
-        carbohydrates: product.nutriments.carbohydrates_100g,
-        fat: product.nutriments.fat_100g,
-        fiber: product.nutriments.fiber_100g,
-        salt: product.nutriments.salt_100g
-      } : undefined;
+      console.log('Données à sauvegarder:', {
+        name: product.product_name || 'Produit inconnu',
+        brand: product.brands || 'Marque inconnue',
+        barcode,
+        expiryDate: new Date(expiryDate),
+        imageUrl: product.image_url
+      });
 
-      // Extraction des ingrédients
-      const ingredients = product.ingredients_text_fr 
-        ? product.ingredients_text_fr.split(',').map((i: string) => i.trim())
-        : undefined;
-
-      // Extraction des allergènes
-      const allergens = product.allergens_tags
-        ? product.allergens_tags.map((a: string) => a.replace('fr:', ''))
-        : undefined;
-
-      // Extraction des labels
-      const labels = product.labels_tags
-        ? product.labels_tags.map((l: string) => l.replace('fr:', ''))
-        : undefined;
-
-      await addDoc(collection(db, 'products'), {
+      const docRef = await addDoc(collection(db, 'products'), {
         name: product.product_name || 'Produit inconnu',
         brand: product.brands || 'Marque inconnue',
         barcode: barcode,
@@ -139,13 +126,26 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
         imageUrl: product.image_url,
         createdAt: new Date(),
         // Informations nutritionnelles
-        nutrition,
+        nutrition: product.nutriments ? {
+          calories: product.nutriments['energy-kcal_100g'],
+          proteins: product.nutriments.proteins_100g,
+          carbohydrates: product.nutriments.carbohydrates_100g,
+          fat: product.nutriments.fat_100g,
+          fiber: product.nutriments.fiber_100g,
+          salt: product.nutriments.salt_100g
+        } : undefined,
         // Informations supplémentaires
         quantity: product.quantity,
         categories: product.categories_tags?.map((c: string) => c.replace('fr:', '')),
-        ingredients,
-        allergens,
-        labels,
+        ingredients: product.ingredients_text_fr 
+          ? product.ingredients_text_fr.split(',').map((i: string) => i.trim())
+          : undefined,
+        allergens: product.allergens_tags
+          ? product.allergens_tags.map((a: string) => a.replace('fr:', ''))
+          : undefined,
+        labels: product.labels_tags
+          ? product.labels_tags.map((l: string) => l.replace('fr:', ''))
+          : undefined,
         ecoScore: product.ecoscore_grade,
         novaGroup: product.nova_group,
         nutriscore: product.nutriscore_grade,
@@ -159,8 +159,12 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
         servingSize: product.serving_size,
         preparationInstructions: product.preparation_instructions
       });
+
+      console.log('Produit enregistré avec succès, ID:', docRef.id);
+      alert('Produit enregistré avec succès !');
       onClose();
     } catch (err) {
+      console.error('Erreur lors de l\'enregistrement:', err);
       setError('Erreur lors de l\'enregistrement du produit');
     }
   };
