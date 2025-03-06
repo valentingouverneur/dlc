@@ -181,6 +181,7 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
 
   return (
     <div className="space-y-4">
+      {error && <div className="text-red-500 text-center">{error}</div>}
       <div className="flex justify-center gap-4 mb-4">
         <button
           onClick={() => setScanning(!scanning)}
@@ -325,9 +326,11 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
               </div>
 
               <button
-                onClick={handleSave}
-                disabled={!expiryDate}
-                className="w-full bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                onClick={() => {
+                  console.log('Clic sur Enregistrer');
+                  handleSave();
+                }}
+                className="w-full bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition-colors active:bg-gray-900"
               >
                 Enregistrer
               </button>
