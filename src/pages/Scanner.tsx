@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import axios from 'axios';
@@ -16,49 +16,38 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
   const [error, setError] = useState('');
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   useEffect(() => {
-    const html5Qrcode = new Html5Qrcode("reader");
-    scannerRef.current = html5Qrcode;
+    scannerRef.current = new Html5QrcodeScanner(
+      'reader',
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
+      },
+      false
+    );
 
-    const startScanner = async () => {
-      try {
-        const devices = await Html5Qrcode.getCameras();
-        if (devices && devices.length > 0) {
-          // Sélectionner la dernière caméra (généralement la caméra arrière sur mobile)
-          const cameraId = devices[devices.length - 1].id;
-          
-          await html5Qrcode.start(
-            cameraId,
-            {
-              fps: 10,
-              qrbox: { width: 250, height: 250 },
-            },
-            handleScan,
-            (errorMessage) => {
-              console.warn(errorMessage);
-            }
-          );
-        }
-      } catch (err) {
-        console.error('Erreur d\'accès à la caméra:', err);
-        setError('Erreur d\'accès à la caméra. Veuillez vérifier les permissions.');
+    scannerRef.current.render(
+      (decodedText: string) => {
+        handleScan(decodedText);
+      },
+      (errorMessage: string) => {
+        console.warn(errorMessage);
       }
-    };
-
-    startScanner();
+    );
 
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.stop().catch(console.error);
+        scannerRef.current.clear();
       }
     };
   }, []);
 
   const handleScan = async (decodedText: string) => {
     if (scannerRef.current) {
-      await scannerRef.current.stop();
+      scannerRef.current.clear();
     }
     
     setBarcode(decodedText);
