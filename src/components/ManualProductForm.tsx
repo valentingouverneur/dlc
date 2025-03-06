@@ -21,43 +21,26 @@ const ManualProductForm: React.FC<ManualProductFormProps> = ({ onClose }) => {
     setError(null);
     setTakingPhoto(true);
 
+    // Attendre que le composant vidéo soit monté
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('L\'API MediaDevices n\'est pas disponible sur ce navigateur');
       }
 
-      const constraints = {
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      };
-
-      await new Promise(resolve => setTimeout(resolve, 100));
-
       if (!videoRef.current) {
         throw new Error('La référence video n\'est pas disponible');
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      videoRef.current.srcObject = stream;
-
-      await new Promise((resolve, reject) => {
-        if (!videoRef.current) {
-          reject(new Error('La référence video a été perdue'));
-          return;
-        }
-
-        videoRef.current.onloadedmetadata = () => {
-          if (videoRef.current) {
-            videoRef.current.play()
-              .then(resolve)
-              .catch(reject);
-          }
-        };
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { exact: "environment" } },
+        audio: false
       });
+
+      // Assigner le stream à la vidéo
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
 
     } catch (err) {
       let errorMessage = 'Impossible d\'accéder à la caméra';
@@ -206,12 +189,19 @@ const ManualProductForm: React.FC<ManualProductFormProps> = ({ onClose }) => {
         </label>
         
         {takingPhoto ? (
-          <div className="relative">
+          <div className="relative bg-black rounded-lg overflow-hidden">
             <video
               ref={videoRef}
               autoPlay
               playsInline
-              className="w-full rounded-lg"
+              muted
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                transform: 'scaleX(-1)'
+              }}
+              className="rounded-lg"
             />
             <button
               type="button"
