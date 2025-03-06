@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import axios from 'axios';
@@ -9,7 +9,6 @@ interface ScannerProps {
 }
 
 const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
-  const [scanning, setScanning] = useState(false);
   const [barcode, setBarcode] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [product, setProduct] = useState<any>(null);
@@ -17,46 +16,58 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
   const [error, setError] = useState('');
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
-    if (!scanning) {
-      scannerRef.current = new Html5QrcodeScanner(
-        'reader',
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0,
-        },
-        false
-      );
+    const html5Qrcode = new Html5Qrcode("reader");
+    scannerRef.current = html5Qrcode;
 
-      scannerRef.current.render(
-        (decodedText) => {
-          handleScan(decodedText);
-        },
-        (errorMessage) => {
-          console.warn(errorMessage);
+    const startScanner = async () => {
+      try {
+        const devices = await Html5Qrcode.getCameras();
+        if (devices && devices.length > 0) {
+          // Sélectionner la dernière caméra (généralement la caméra arrière sur mobile)
+          const cameraId = devices[devices.length - 1].id;
+          
+          await html5Qrcode.start(
+            cameraId,
+            {
+              fps: 10,
+              qrbox: { width: 250, height: 250 },
+            },
+            handleScan,
+            (errorMessage) => {
+              console.warn(errorMessage);
+            }
+          );
         }
-      );
-    }
+      } catch (err) {
+        console.error('Erreur d\'accès à la caméra:', err);
+        setError('Erreur d\'accès à la caméra. Veuillez vérifier les permissions.');
+      }
+    };
+
+    startScanner();
 
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.clear();
+        scannerRef.current.stop().catch(console.error);
       }
     };
-  }, [scanning]);
+  }, []);
 
-  const handleScan = async (code: string) => {
-    setBarcode(code);
-    setScanning(false);
+  const handleScan = async (decodedText: string) => {
+    if (scannerRef.current) {
+      await scannerRef.current.stop();
+    }
+    
+    setBarcode(decodedText);
     setLoading(true);
     setError('');
     setImageError(false);
 
     try {
-      const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
+      const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${decodedText}.json`);
       if (response.data.status === 1 && response.data.product) {
         const productData = response.data.product;
         const imageUrl = productData.image_front_url || 
