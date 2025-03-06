@@ -8,6 +8,12 @@ interface ScannerProps {
   onClose: () => void;
 }
 
+interface Html5QrcodeScannerConfig {
+  fps: number;
+  qrbox: { width: number; height: number };
+  aspectRatio: number;
+}
+
 const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
   const [barcode, setBarcode] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
@@ -19,13 +25,15 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   useEffect(() => {
+    const config: Html5QrcodeScannerConfig = {
+      fps: 10,
+      qrbox: { width: 250, height: 250 },
+      aspectRatio: 1.0
+    };
+
     scannerRef.current = new Html5QrcodeScanner(
       'reader',
-      {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0,
-      },
+      config,
       false
     );
 
