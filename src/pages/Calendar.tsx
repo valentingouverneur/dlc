@@ -16,31 +16,6 @@ const Calendar: React.FC = () => {
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-
-  useEffect(() => {
-    const checkNotificationPermission = async () => {
-      const notificationService = NotificationService.getInstance();
-      const hasPermission = await notificationService.requestPermission();
-      setNotificationsEnabled(hasPermission);
-    };
-
-    checkNotificationPermission();
-  }, []);
-
-  useEffect(() => {
-    const notificationService = NotificationService.getInstance();
-    
-    if (notificationsEnabled && products.length > 0) {
-      notificationService.startDailyCheck(products);
-    } else {
-      notificationService.stopDailyCheck();
-    }
-
-    return () => {
-      notificationService.stopDailyCheck();
-    };
-  }, [products, notificationsEnabled]);
 
   useEffect(() => {
     console.log('Initialisation de la souscription Firebase');
@@ -123,26 +98,6 @@ const Calendar: React.FC = () => {
           <>
             <div className="flex justify-between items-center mb-6">
               <h1 className="text-2xl font-bold text-gray-800">Calendrier des DLC - Surgelés</h1>
-              <button
-                onClick={async () => {
-                  const notificationService = NotificationService.getInstance();
-                  if (notificationsEnabled) {
-                    notificationService.stopDailyCheck();
-                    setNotificationsEnabled(false);
-                  } else {
-                    const granted = await notificationService.requestPermission();
-                    setNotificationsEnabled(granted);
-                  }
-                }}
-                className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
-                  notificationsEnabled 
-                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' 
-                    : 'bg-black text-white hover:bg-gray-800'
-                }`}
-              >
-                <FontAwesomeIcon icon={faBell} className="mr-2" />
-                {notificationsEnabled ? 'Désactiver les notifications' : 'Activer les notifications'}
-              </button>
             </div>
 
             <ExpiryNotifications products={products} />
