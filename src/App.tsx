@@ -30,7 +30,9 @@ function App() {
           </Routes>
         </div>
         <MobileBlurEffect />
-        <FloatingScannerButton onClick={() => setIsScannerOpen(true)} />
+        {!isScannerOpen && (
+          <FloatingScannerButton onClick={() => setIsScannerOpen(true)} />
+        )}
 
         <Modal
           isOpen={isScannerOpen}

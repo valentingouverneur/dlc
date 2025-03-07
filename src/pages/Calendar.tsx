@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ConfirmModal from '../components/ConfirmModal';
 import { Product } from '../types/Product';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
 
 const Calendar: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -144,18 +146,25 @@ const Calendar: React.FC = () => {
                               <p className="text-sm text-gray-500">{product.brand}</p>
                             </div>
                           </Link>
-                          <button
-                            onClick={() => {
-                              setProductToDelete(product);
-                              setDeleteModalOpen(true);
-                            }}
-                            className="ml-4 p-2 text-gray-400 hover:text-red-500 transition-colors"
-                            title="Supprimer le produit"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          <div className="flex items-center space-x-2">
+                            <Link
+                              to={`/product/${product.id}`}
+                              className="p-2 text-gray-400 hover:text-blue-500 transition-colors"
+                              title="Modifier le produit"
+                            >
+                              <FontAwesomeIcon icon={faPen} className="w-5 h-5" />
+                            </Link>
+                            <button
+                              onClick={() => {
+                                setProductToDelete(product);
+                                setDeleteModalOpen(true);
+                              }}
+                              className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                              title="Supprimer le produit"
+                            >
+                              <FontAwesomeIcon icon={faTrash} className="w-5 h-5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
