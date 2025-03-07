@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -11,6 +11,9 @@ const ProductDetails: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [newImage, setNewImage] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [formData, setFormData] = useState({
     name: '',
     brand: '',
@@ -46,26 +49,79 @@ const ProductDetails: React.FC = () => {
     fetchProduct();
   }, [id]);
 
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' }
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error('Erreur lors de l\'accès à la caméra:', err);
+      alert('Impossible d\'accéder à la caméra');
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  const takePhoto = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0);
+        const imageDataUrl = canvas.toDataURL('image/jpeg');
+        setNewImage(imageDataUrl);
+        stopCamera();
+        setIsCameraOpen(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isCameraOpen) {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+    return () => stopCamera();
+  }, [isCameraOpen]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id || !product) return;
 
     try {
       const docRef = doc(db, 'products', id);
-      await updateDoc(docRef, {
+      const expiryDate = new Date(formData.expiryDate);
+      const updateData: Partial<Product> = {
         name: formData.name,
         brand: formData.brand,
-        expiryDate: new Date(formData.expiryDate).toISOString()
+        expiryDate,
+        ...(newImage && { imageUrl: newImage })
+      };
+
+      await updateDoc(docRef, {
+        ...updateData,
+        expiryDate: expiryDate.toISOString()
       });
 
       setProduct({
         ...product,
-        name: formData.name,
-        brand: formData.brand,
-        expiryDate: new Date(formData.expiryDate).toISOString()
+        ...updateData
       });
       
       setIsEditing(false);
+      setNewImage(null);
     } catch (err) {
       console.error('Erreur lors de la mise à jour:', err);
       alert('Erreur lors de la mise à jour du produit');
@@ -114,43 +170,101 @@ const ProductDetails: React.FC = () => {
 
           {isEditing ? (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Nom du produit
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm p-2"
-                  required
-                />
-              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-center">
+                  {isCameraOpen ? (
+                    <div className="relative w-full max-w-sm">
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        className="w-full rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={takePhoto}
+                        className="absolute bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-black text-white rounded-full"
+                      >
+                        Prendre la photo
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      {newImage ? (
+                        <div className="relative inline-block">
+                          <img
+                            src={newImage}
+                            alt="Nouvelle photo"
+                            className="w-32 h-32 object-contain rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setIsCameraOpen(true)}
+                            className="mt-2 px-4 py-2 text-sm bg-black text-white rounded-lg"
+                          >
+                            Reprendre la photo
+                          </button>
+                        </div>
+                      ) : (
+                        <div>
+                          {product.imageUrl && (
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="w-32 h-32 object-contain rounded-lg mx-auto mb-2"
+                            />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setIsCameraOpen(true)}
+                            className="px-4 py-2 text-sm bg-black text-white rounded-lg"
+                          >
+                            {product.imageUrl ? 'Changer la photo' : 'Ajouter une photo'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Marque
-                </label>
-                <input
-                  type="text"
-                  value={formData.brand}
-                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm p-2"
-                  required
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Nom du produit
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm p-2"
+                    required
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Date de péremption
-                </label>
-                <input
-                  type="date"
-                  value={formData.expiryDate}
-                  onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm p-2"
-                  required
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Marque
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.brand}
+                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                    className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm p-2"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Date de péremption
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.expiryDate}
+                    onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                    className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm p-2"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
