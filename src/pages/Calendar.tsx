@@ -3,6 +3,7 @@ import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase
 import { db } from '../config/firebase';
 import { Link, useNavigate } from 'react-router-dom';
 import ConfirmModal from '../components/ConfirmModal';
+import ExpiryNotifications from '../components/ExpiryNotifications';
 import { Product } from '../types/Product';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
@@ -97,6 +98,8 @@ const Calendar: React.FC = () => {
             <div className="flex justify-between items-center mb-6">
               <h1 className="text-2xl font-bold text-gray-800">Calendrier des DLC - Surgelés</h1>
             </div>
+
+            <ExpiryNotifications products={products} />
 
             <div className="mb-6">
               <div className="relative">
