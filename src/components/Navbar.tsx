@@ -1,25 +1,64 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faPlus, faBars, faBell, faTimes } from '@fortawesome/free-solid-svg-icons';
 import Modal from './Modal';
 import ManualProductForm from './ManualProductForm';
 import { NotificationService } from '../services/NotificationService';
+import { collection, query, onSnapshot } from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { Product } from '../types/Product';
 
 const Navbar: React.FC = () => {
   const location = useLocation();
   const [isManualFormOpen, setIsManualFormOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+    return localStorage.getItem('notificationsEnabled') === 'true';
+  });
+
+  useEffect(() => {
+    // Écouter les changements dans la collection products
+    const q = query(collection(db, 'products'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const productsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Product[];
+      setProducts(productsData);
+      
+      // Mettre à jour les notifications si elles sont activées
+      if (notificationsEnabled) {
+        const notificationService = NotificationService.getInstance();
+        notificationService.startDailyCheck(productsData);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [notificationsEnabled]);
+
+  useEffect(() => {
+    // Initialiser le service de notification si activé
+    if (notificationsEnabled) {
+      const notificationService = NotificationService.getInstance();
+      notificationService.startDailyCheck(products);
+    }
+  }, []);
 
   const handleNotificationToggle = async () => {
     const notificationService = NotificationService.getInstance();
     if (notificationsEnabled) {
       notificationService.stopDailyCheck();
       setNotificationsEnabled(false);
+      localStorage.setItem('notificationsEnabled', 'false');
     } else {
       const granted = await notificationService.requestPermission();
       setNotificationsEnabled(granted);
+      if (granted) {
+        localStorage.setItem('notificationsEnabled', 'true');
+        notificationService.startDailyCheck(products);
+      }
     }
     setIsMenuOpen(false);
   };
