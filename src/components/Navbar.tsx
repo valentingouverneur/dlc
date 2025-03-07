@@ -35,7 +35,7 @@ const Navbar: React.FC = () => {
           <div className="relative">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 rounded-full transition-colors text-gray-600 hover:text-black"
+              className="p-2 rounded-full text-gray-500 hover:text-gray-900 transition-colors"
             >
               <FontAwesomeIcon icon={isMenuOpen ? faTimes : faBars} className="w-6 h-6" />
             </button>
@@ -47,7 +47,7 @@ const Navbar: React.FC = () => {
                     setIsManualFormOpen(true);
                     setIsMenuOpen(false);
                   }}
-                  className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
+                  className="w-full px-4 py-2 text-left text-gray-500 hover:text-gray-900 hover:bg-gray-50 flex items-center transition-colors"
                 >
                   <FontAwesomeIcon icon={faPlus} className="w-5 h-5 mr-3" />
                   Ajouter un produit
@@ -55,7 +55,7 @@ const Navbar: React.FC = () => {
                 
                 <Link 
                   to="/products" 
-                  className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
+                  className="w-full px-4 py-2 text-left text-gray-500 hover:text-gray-900 hover:bg-gray-50 flex items-center transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <FontAwesomeIcon icon={faSearch} className="w-5 h-5 mr-3" />
@@ -64,7 +64,7 @@ const Navbar: React.FC = () => {
 
                 <button
                   onClick={handleNotificationToggle}
-                  className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center"
+                  className="w-full px-4 py-2 text-left text-gray-500 hover:text-gray-900 hover:bg-gray-50 flex items-center transition-colors"
                 >
                   <FontAwesomeIcon 
                     icon={faBell} 
