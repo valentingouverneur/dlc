@@ -35,7 +35,7 @@ const Navbar: React.FC = () => {
           <div className="relative">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 rounded-full text-gray-500 hover:text-gray-900 transition-colors"
+              className="p-2 rounded-full text-gray-500 hover:text-gray-900 transition-colors focus:outline-none"
             >
               <FontAwesomeIcon icon={isMenuOpen ? faTimes : faBars} className="w-6 h-6" />
             </button>
