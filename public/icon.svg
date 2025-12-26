@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#000000" rx="64"/>
+  <text x="256" y="280" font-family="Arial, sans-serif" font-size="180" font-weight="bold" fill="#ffffff" text-anchor="middle">DLC</text>
+  <circle cx="256" cy="180" r="40" fill="#ffffff"/>
+  <path d="M 256 140 L 256 100 M 256 220 L 256 260" stroke="#ffffff" stroke-width="20" stroke-linecap="round"/>
+</svg>
+

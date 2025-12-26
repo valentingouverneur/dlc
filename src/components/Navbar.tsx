@@ -29,7 +29,7 @@ const Navbar: React.FC = () => {
       setProducts(productsData);
       
       // Mettre à jour les notifications si elles sont activées
-      if (notificationsEnabled) {
+      if (notificationsEnabled && productsData.length > 0) {
         const notificationService = NotificationService.getInstance();
         notificationService.startDailyCheck(productsData);
       }
@@ -37,14 +37,6 @@ const Navbar: React.FC = () => {
 
     return () => unsubscribe();
   }, [notificationsEnabled]);
-
-  useEffect(() => {
-    // Initialiser le service de notification si activé
-    if (notificationsEnabled) {
-      const notificationService = NotificationService.getInstance();
-      notificationService.startDailyCheck(products);
-    }
-  }, []);
 
   const handleNotificationToggle = async () => {
     const notificationService = NotificationService.getInstance();
@@ -55,9 +47,11 @@ const Navbar: React.FC = () => {
     } else {
       const granted = await notificationService.requestPermission();
       setNotificationsEnabled(granted);
-      if (granted) {
+      if (granted && products.length > 0) {
         localStorage.setItem('notificationsEnabled', 'true');
         notificationService.startDailyCheck(products);
+      } else if (granted) {
+        localStorage.setItem('notificationsEnabled', 'true');
       }
     }
     setIsMenuOpen(false);
