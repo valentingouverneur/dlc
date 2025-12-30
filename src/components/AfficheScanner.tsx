@@ -71,6 +71,7 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
     }
 
     setSaving(true);
+    setError('');
     try {
       const afficheData: Omit<Affiche, 'id'> = {
         ean,
@@ -83,9 +84,19 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
 
       await addDoc(collection(db, 'affiches'), afficheData);
       onClose();
-    } catch (err) {
-      setError('Erreur lors de l\'enregistrement');
-      console.error(err);
+    } catch (err: any) {
+      console.error('Erreur Firestore:', err);
+      let errorMessage = 'Erreur lors de l\'enregistrement';
+      
+      if (err.code === 'permission-denied') {
+        errorMessage = 'Permission refusée. Vérifiez les règles Firestore.';
+      } else if (err.code === 'unavailable') {
+        errorMessage = 'Firestore indisponible. Vérifiez votre connexion.';
+      } else if (err.message) {
+        errorMessage = `Erreur: ${err.message}`;
+      }
+      
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }
