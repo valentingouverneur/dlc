@@ -17,6 +17,7 @@ const Affiches: React.FC = () => {
   const [afficheToDelete, setAfficheToDelete] = useState<Affiche | null>(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<string>(''); // Format: 'YYYY-MM-DD' ou '' pour toutes
 
   useEffect(() => {
     const q = query(collection(db, 'affiches'));
@@ -91,10 +92,29 @@ const Affiches: React.FC = () => {
     alert(`Mise à jour terminée : ${updated} mis à jour, ${failed} échecs`);
   };
 
-  const filteredAffiches = affiches.filter(affiche =>
-    affiche.designation.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    affiche.ean.includes(searchTerm)
-  );
+  // Filtrer par date et recherche
+  const filteredAffiches = affiches.filter(affiche => {
+    // Filtre par date
+    if (selectedDate) {
+      const afficheDate = new Date(affiche.createdAt).toISOString().split('T')[0];
+      if (afficheDate !== selectedDate) {
+        return false;
+      }
+    }
+    
+    // Filtre par recherche
+    return (
+      affiche.designation.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      affiche.ean.includes(searchTerm)
+    );
+  });
+
+  // Récupérer les dates uniques pour le sélecteur
+  const uniqueDates = Array.from(
+    new Set(
+      affiches.map(a => new Date(a.createdAt).toISOString().split('T')[0])
+    )
+  ).sort((a, b) => b.localeCompare(a)); // Plus récentes en premier
 
   if (loading) {
     return (
@@ -125,13 +145,40 @@ const Affiches: React.FC = () => {
         </div>
       </div>
 
-      <input
-        type="text"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        placeholder="Rechercher par désignation ou EAN..."
-        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
-      />
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Rechercher par désignation ou EAN..."
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+          />
+        </div>
+        <div className="sm:w-64">
+          <select
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black bg-white"
+          >
+            <option value="">Toutes les dates</option>
+            {uniqueDates.map(date => {
+              const dateObj = new Date(date);
+              const formattedDate = dateObj.toLocaleDateString('fr-FR', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              });
+              return (
+                <option key={date} value={date}>
+                  {formattedDate}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+      </div>
 
       <div className="overflow-x-auto">
         <table className="w-full border-collapse bg-white">
