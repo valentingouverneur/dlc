@@ -161,13 +161,34 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
       const video = videoRef.current;
       const stream = streamRef.current;
       
+      // Vérifier que la vidéo est dans le DOM
+      if (!video.isConnected) {
+        setDebugInfo(prev => prev + ' | ERREUR: video pas dans le DOM');
+        return;
+      }
+      
       if (video.srcObject !== stream) {
         setDebugInfo(prev => prev + ' | Assignation srcObject dans useEffect');
-        video.srcObject = stream;
+        try {
+          video.srcObject = stream;
+          // Vérifier immédiatement
+          if (video.srcObject === stream) {
+            setDebugInfo(prev => prev + ' | srcObject assigné OK');
+            video.play().catch((err: any) => {
+              setDebugInfo(prev => prev + ' | play() ERREUR: ' + err.message);
+            });
+          } else {
+            setDebugInfo(prev => prev + ' | ERREUR: srcObject non assigné après tentative');
+          }
+          updateDebugInfo();
+        } catch (err: any) {
+          setDebugInfo(prev => prev + ' | EXCEPTION lors assignation: ' + err.message);
+        }
+      } else {
+        // Si déjà assigné, juste essayer de jouer
         video.play().catch((err: any) => {
           setDebugInfo(prev => prev + ' | play() ERREUR: ' + err.message);
         });
-        updateDebugInfo();
       }
     }
   }, [step, updateDebugInfo]);
@@ -295,46 +316,51 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
       {step === 'photo' && (
         <div>
           <h3 className="text-lg font-medium mb-4">Photographier l'étiquette</h3>
-          {streamRef.current && streamRef.current.active ? (
-            <div className="relative">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full rounded-lg"
-              />
-              <div className="mt-4 flex justify-center">
-                <button
-                  onClick={takePhoto}
-                  disabled={!cameraReady}
-                  className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {cameraReady ? 'Prendre la photo' : 'Chargement...'}
-                </button>
-              </div>
-              {!cameraReady && (
-                <p className="text-center text-sm text-gray-500 mt-2">
-                  Attente de la caméra...
-                </p>
-              )}
-            </div>
-          ) : error ? (
-            <div className="text-center py-8">
-              <p className="text-red-600 mb-4">{error}</p>
-              <button
-                onClick={startCamera}
-                className="px-4 py-2 bg-black text-white rounded-lg"
-              >
-                Réessayer
-              </button>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
-              <p className="text-gray-600">Démarrage de la caméra...</p>
-            </div>
-          )}
+          {/* Toujours rendre la vidéo dans le DOM, même si le stream n'est pas encore prêt */}
+          <div className="relative">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className={`w-full rounded-lg ${streamRef.current && streamRef.current.active ? '' : 'hidden'}`}
+            />
+            {!streamRef.current || !streamRef.current.active ? (
+              error ? (
+                <div className="text-center py-8">
+                  <p className="text-red-600 mb-4">{error}</p>
+                  <button
+                    onClick={startCamera}
+                    className="px-4 py-2 bg-black text-white rounded-lg"
+                  >
+                    Réessayer
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
+                  <p className="text-gray-600">Démarrage de la caméra...</p>
+                </div>
+              )
+            ) : (
+              <>
+                <div className="mt-4 flex justify-center">
+                  <button
+                    onClick={takePhoto}
+                    disabled={!cameraReady}
+                    className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {cameraReady ? 'Prendre la photo' : 'Chargement...'}
+                  </button>
+                </div>
+                {!cameraReady && (
+                  <p className="text-center text-sm text-gray-500 mt-2">
+                    Attente de la caméra...
+                  </p>
+                )}
+              </>
+            )}
+          </div>
           <canvas ref={canvasRef} style={{ display: 'none' }} />
         </div>
       )}
