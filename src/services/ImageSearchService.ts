@@ -15,8 +15,14 @@ export class ImageSearchService {
    * Privilégie les packshots professionnels plutôt que les photos utilisateurs
    */
   static async searchGoogleImage(ean: string, productName?: string): Promise<string | null> {
+    console.log('🔍 Recherche image pour EAN:', ean);
+    console.log('🔑 API Key configurée:', !!this.GOOGLE_API_KEY, this.GOOGLE_API_KEY ? `${this.GOOGLE_API_KEY.substring(0, 10)}...` : 'NON');
+    console.log('🔑 CSE ID configuré:', !!this.GOOGLE_CSE_ID, this.GOOGLE_CSE_ID || 'NON');
+    
     if (!this.GOOGLE_API_KEY || !this.GOOGLE_CSE_ID) {
-      console.warn('Google API keys non configurées');
+      console.error('❌ Google API keys non configurées');
+      console.error('API Key:', this.GOOGLE_API_KEY ? 'OUI' : 'NON');
+      console.error('CSE ID:', this.GOOGLE_CSE_ID ? 'OUI' : 'NON');
       return null;
     }
 
@@ -41,9 +47,14 @@ export class ImageSearchService {
         excludeTerms: 'openfoodfacts user photo',
       };
 
+      console.log('📡 Requête Google Custom Search:', { query, url, params: { ...params, key: '***' } });
+      
       const response = await axios.get(url, { params });
       
+      console.log('✅ Réponse Google:', response.data);
+      
       if (response.data.items && response.data.items.length > 0) {
+        console.log(`📸 ${response.data.items.length} images trouvées`);
         // Domaines privilégiés : grandes enseignes et sites professionnels
         const preferredDomains = [
           'leclerc', 'carrefour', 'auchan', 'intermarche', 'monoprix', 'casino',
@@ -99,7 +110,13 @@ export class ImageSearchService {
       
       return null;
     } catch (err: any) {
-      console.warn('Erreur Google Images:', err.response?.data || err.message);
+      console.error('❌ Erreur Google Images:', err);
+      console.error('Détails:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        statusText: err.response?.statusText
+      });
       return null;
     }
   }
