@@ -77,65 +77,52 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
       
       // L'assignation du srcObject sera faite dans le useEffect séparé
       // qui se déclenche quand la vidéo est montée
-        
-        // Afficher la vidéo immédiatement si le stream est actif
-        if (stream.active) {
-          setDebugInfo(prev => prev + ' | Stream actif, attente 500ms');
-          setTimeout(() => {
-            updateDebugInfo();
-            if (video.videoWidth > 0 && video.videoHeight > 0) {
-              setCameraReady(true);
-              setDebugInfo(prev => prev + ' | CAMERA READY');
-            } else {
-              setDebugInfo(prev => prev + ' | Pas de dimensions encore');
-            }
-          }, 500);
-        }
-        
-        // Vérifier périodiquement que la vidéo est vraiment prête
-        const checkVideoReady = () => {
-          updateDebugInfo();
-          if (video.videoWidth > 0 && video.videoHeight > 0) {
-            if (checkIntervalRef.current) {
-              clearInterval(checkIntervalRef.current);
-              checkIntervalRef.current = null;
-            }
-            setCameraReady(true);
-            setDebugInfo(prev => prev + ' | CAMERA READY (dimensions OK)');
-            return true;
+      
+      // Vérifier périodiquement que la vidéo est vraiment prête
+      const checkVideoReady = () => {
+        if (!videoRef.current) return false;
+        const video = videoRef.current;
+        updateDebugInfo();
+        if (video.videoWidth > 0 && video.videoHeight > 0) {
+          if (checkIntervalRef.current) {
+            clearInterval(checkIntervalRef.current);
+            checkIntervalRef.current = null;
           }
-          return false;
-        };
-        
-        // Vérifier immédiatement
-        if (checkVideoReady()) {
-          return;
+          setCameraReady(true);
+          setDebugInfo(prev => prev + ' | CAMERA READY (dimensions OK)');
+          return true;
         }
-        
-        // Sinon, vérifier toutes les 200ms avec un timeout de 5 secondes
-        let attempts = 0;
-        const maxAttempts = 25; // 25 * 200ms = 5 secondes
-        
-        checkIntervalRef.current = setInterval(() => {
-          attempts++;
-          updateDebugInfo();
-          if (checkVideoReady() || attempts >= maxAttempts) {
-            if (checkIntervalRef.current) {
-              clearInterval(checkIntervalRef.current);
-              checkIntervalRef.current = null;
-            }
-            // Même si on n'a pas de dimensions, si le stream est actif, on force
-            if (attempts >= maxAttempts && !checkVideoReady()) {
-              if (streamRef.current && streamRef.current.active) {
-                setCameraReady(true);
-                setDebugInfo(prev => prev + ' | FORCE READY (stream actif)');
-              } else {
-                setDebugInfo(prev => prev + ' | TIMEOUT');
-              }
-            }
-          }
-        }, 200);
+        return false;
+      };
+      
+      // Vérifier immédiatement
+      if (checkVideoReady()) {
+        return;
       }
+      
+      // Sinon, vérifier toutes les 200ms avec un timeout de 5 secondes
+      let attempts = 0;
+      const maxAttempts = 25; // 25 * 200ms = 5 secondes
+      
+      checkIntervalRef.current = setInterval(() => {
+        attempts++;
+        updateDebugInfo();
+        if (checkVideoReady() || attempts >= maxAttempts) {
+          if (checkIntervalRef.current) {
+            clearInterval(checkIntervalRef.current);
+            checkIntervalRef.current = null;
+          }
+          // Même si on n'a pas de dimensions, si le stream est actif, on force
+          if (attempts >= maxAttempts && !checkVideoReady()) {
+            if (streamRef.current && streamRef.current.active) {
+              setCameraReady(true);
+              setDebugInfo(prev => prev + ' | FORCE READY (stream actif)');
+            } else {
+              setDebugInfo(prev => prev + ' | TIMEOUT');
+            }
+          }
+        }
+      }, 200);
     } catch (err: any) {
       let errorMessage = 'Impossible d\'accéder à la caméra';
       
