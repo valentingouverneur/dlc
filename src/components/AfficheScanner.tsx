@@ -73,41 +73,10 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
         }
       });
       streamRef.current = stream;
-      setDebugInfo('Stream obtenu, actif: ' + stream.active);
+      setDebugInfo('Stream obtenu, actif: ' + stream.active + ' | Attente assignation dans useEffect');
       
-      // Attendre que videoRef soit disponible
-      let attempts = 0;
-      while (!videoRef.current && attempts < 10) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        attempts++;
-      }
-      
-      if (!videoRef.current) {
-        setDebugInfo('ERREUR: videoRef.current toujours NULL après attente');
-        setError('Erreur: élément vidéo non disponible');
-        return;
-      }
-      
-      const video = videoRef.current;
-      video.srcObject = stream;
-      
-      // Vérifier que l'assignation a fonctionné
-      await new Promise(resolve => setTimeout(resolve, 50));
-      if (video.srcObject !== stream) {
-        setDebugInfo('ERREUR: srcObject non assigné ! video.srcObject=' + (video.srcObject ? 'EXISTE' : 'NULL'));
-        setError('Erreur lors de l\'assignation du stream à la vidéo');
-        return;
-      }
-      setDebugInfo(prev => prev + ' | srcObject assigné OK');
-      updateDebugInfo();
-        
-        // Essayer de jouer la vidéo
-        try {
-          await video.play();
-          setDebugInfo(prev => prev + ' | play() OK');
-        } catch (playErr: any) {
-          setDebugInfo(prev => prev + ' | play() ERREUR: ' + playErr.message);
-        }
+      // L'assignation du srcObject sera faite dans le useEffect séparé
+      // qui se déclenche quand la vidéo est montée
         
         // Afficher la vidéo immédiatement si le stream est actif
         if (stream.active) {
@@ -186,21 +155,27 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
     }
   }, [updateDebugInfo]);
 
+  // Assigner le stream à la vidéo quand elle est montée
+  useEffect(() => {
+    if (step === 'photo' && streamRef.current && videoRef.current) {
+      const video = videoRef.current;
+      const stream = streamRef.current;
+      
+      if (video.srcObject !== stream) {
+        setDebugInfo(prev => prev + ' | Assignation srcObject dans useEffect');
+        video.srcObject = stream;
+        video.play().catch((err: any) => {
+          setDebugInfo(prev => prev + ' | play() ERREUR: ' + err.message);
+        });
+        updateDebugInfo();
+      }
+    }
+  }, [step, updateDebugInfo]);
+
   // Démarrer la caméra automatiquement
   useEffect(() => {
     if (step === 'photo') {
-      // Attendre que videoRef soit monté avant de démarrer la caméra
-      const timer = setTimeout(() => {
-        if (videoRef.current) {
-          startCamera();
-        } else {
-          setDebugInfo('ERREUR: videoRef.current est NULL');
-        }
-      }, 100);
-      return () => {
-        clearTimeout(timer);
-        stopCamera();
-      };
+      startCamera();
     }
     return () => {
       stopCamera();
