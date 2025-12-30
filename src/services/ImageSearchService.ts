@@ -27,14 +27,14 @@ export class ImageSearchService {
     }
 
     try {
-      // Construire la requête de recherche pour privilégier les packshots
-      // On exclut les sites de photos utilisateurs et on privilégie les grandes enseignes
-      const query = productName 
-        ? `${productName} ${ean} packshot produit`
-        : `EAN ${ean} packshot produit alimentaire`;
+      // Construire la requête de recherche - simplifier pour trouver plus de résultats
+      // On essaie d'abord avec le nom du produit + EAN, puis juste l'EAN si pas de résultats
+      let query = productName 
+        ? `${productName} ${ean}`
+        : `${ean} produit`;
       
       const url = `https://www.googleapis.com/customsearch/v1`;
-      const params: any = {
+      let params: any = {
         key: this.GOOGLE_API_KEY,
         cx: this.GOOGLE_CSE_ID,
         q: query,
@@ -43,13 +43,19 @@ export class ImageSearchService {
         safe: 'active',
         imgSize: 'large', // Prioriser les grandes images
         imgType: 'photo', // Uniquement des photos
-        // Exclure les sites de photos utilisateurs
-        excludeTerms: 'openfoodfacts user photo',
       };
 
       console.log('📡 Requête Google Custom Search:', { query, url, params: { ...params, key: '***' } });
       
-      const response = await axios.get(url, { params });
+      let response = await axios.get(url, { params });
+      
+      // Si aucun résultat, essayer avec juste l'EAN
+      if (!response.data.items || response.data.items.length === 0) {
+        console.log('⚠️ Aucun résultat avec la requête complète, essai avec juste l\'EAN...');
+        params.q = ean;
+        response = await axios.get(url, { params });
+      }
+
       
       console.log('✅ Réponse Google:', response.data);
       console.log('📊 Informations de recherche:', response.data.searchInformation);
