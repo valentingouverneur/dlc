@@ -31,3 +31,8 @@ dev-dist
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local

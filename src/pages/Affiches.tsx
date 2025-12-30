@@ -6,6 +6,7 @@ import Modal from '../components/Modal';
 import AfficheScanner from '../components/AfficheScanner';
 import ConfirmModal from '../components/ConfirmModal';
 import axios from 'axios';
+import { ImageSearchService } from '../services/ImageSearchService';
 
 const Affiches: React.FC = () => {
   const [affiches, setAffiches] = useState<Affiche[]>([]);
@@ -105,6 +106,14 @@ const Affiches: React.FC = () => {
           if (imageUrl && affiche.id) {
             await updateDoc(doc(db, 'affiches', affiche.id), { imageUrl });
             updated++;
+          } else {
+            // Si pas d'image Open Food Facts, essayer Google Images
+            console.log(`Pas d'image Open Food Facts pour ${affiche.ean}, recherche Google Images...`);
+            const googleImage = await ImageSearchService.searchImage(affiche.ean, affiche.designation);
+            if (googleImage && affiche.id) {
+              await updateDoc(doc(db, 'affiches', affiche.id), { imageUrl: googleImage });
+              updated++;
+            }
           }
         }
       } catch (err) {

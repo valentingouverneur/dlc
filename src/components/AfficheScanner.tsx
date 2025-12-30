@@ -5,6 +5,7 @@ import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Affiche } from '../types/Affiche';
 import axios from 'axios';
+import { ImageSearchService } from '../services/ImageSearchService';
 
 interface AfficheScannerProps {
   onClose: () => void;
@@ -113,14 +114,41 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
         
         console.log('Image URL récupérée (haute résolution):', imageUrl);
         
+        const designation = product.product_name_fr || product.product_name || product.generic_name || '';
+        
         setOpenFoodData({
-          designation: product.product_name_fr || product.product_name || product.generic_name || '',
+          designation: designation,
           brand: product.brands || '',
           weight: product.quantity || '',
           imageUrl: imageUrl,
         });
+
+        // Si l'image Open Food Facts est de mauvaise qualité ou absente,
+        // essayer de récupérer une image depuis Google Images
+        if (!imageUrl || imageUrl.includes('small') || imageUrl.includes('200')) {
+          console.log('Recherche image de meilleure qualité depuis Google Images...');
+          const googleImage = await ImageSearchService.searchImage(barcode, designation);
+          if (googleImage) {
+            console.log('Image Google trouvée, remplacement de l\'image Open Food Facts');
+            setOpenFoodData(prev => ({
+              ...prev,
+              imageUrl: googleImage,
+            }));
+          }
+        }
       } else {
         console.log('Produit non trouvé dans Open Food Facts pour EAN:', barcode);
+        // Essayer quand même Google Images même si pas trouvé sur Open Food Facts
+        console.log('Recherche image depuis Google Images...');
+        const googleImage = await ImageSearchService.searchImage(barcode);
+        if (googleImage) {
+          setOpenFoodData({
+            designation: '',
+            brand: '',
+            weight: '',
+            imageUrl: googleImage,
+          });
+        }
       }
     } catch (err) {
       console.warn('Erreur Open Food Facts:', err);
