@@ -21,9 +21,14 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Arrêter la caméra
   const stopCamera = useCallback(() => {
+    if (checkIntervalRef.current) {
+      clearInterval(checkIntervalRef.current);
+      checkIntervalRef.current = null;
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -31,6 +36,7 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    setCameraReady(false);
   }, []);
 
   // Démarrer la caméra pour la photo
@@ -38,6 +44,7 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
     try {
       setError('');
       setCameraReady(false);
+      
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: 'environment',
@@ -51,63 +58,55 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
         const video = videoRef.current;
         video.srcObject = stream;
         
-        // Attendre que la vidéo soit vraiment prête avec les événements
-        await new Promise<void>((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            video.removeEventListener('loadedmetadata', onLoadedMetadata);
-            video.removeEventListener('playing', onPlaying);
-            video.removeEventListener('error', onError);
-            reject(new Error('Timeout: la caméra met trop de temps à démarrer'));
-          }, 10000); // 10 secondes max
-          
-          const onLoadedMetadata = () => {
-            video.play().catch((playErr) => {
-              clearTimeout(timeout);
-              video.removeEventListener('playing', onPlaying);
-              video.removeEventListener('error', onError);
-              reject(playErr);
-            });
-          };
-          
-          const onPlaying = () => {
-            clearTimeout(timeout);
-            video.removeEventListener('loadedmetadata', onLoadedMetadata);
-            video.removeEventListener('error', onError);
-            // Attendre encore un peu pour être sûr que la vidéo joue vraiment
-            setTimeout(() => {
-              setCameraReady(true);
-              resolve();
-            }, 200);
-          };
-          
-          const onError = () => {
-            clearTimeout(timeout);
-            video.removeEventListener('loadedmetadata', onLoadedMetadata);
-            video.removeEventListener('playing', onPlaying);
-            reject(new Error('Erreur lors du chargement de la vidéo'));
-          };
-          
-          // Si la vidéo est déjà chargée, déclencher directement
-          if (video.readyState >= 2) {
-            video.play()
-              .then(() => {
-                if (video.readyState >= 2) {
-                  clearTimeout(timeout);
-                  setTimeout(() => {
-                    setCameraReady(true);
-                    resolve();
-                  }, 200);
-                } else {
-                  video.addEventListener('playing', onPlaying, { once: true });
-                }
-              })
-              .catch(reject);
-          } else {
-            video.addEventListener('loadedmetadata', onLoadedMetadata, { once: true });
-            video.addEventListener('playing', onPlaying, { once: true });
-            video.addEventListener('error', onError, { once: true });
+        // Essayer de jouer la vidéo
+        try {
+          await video.play();
+        } catch (playErr) {
+          console.warn('Erreur play():', playErr);
+        }
+        
+        // Vérifier périodiquement que la vidéo est prête
+        // La vidéo est prête quand elle a des dimensions valides
+        const checkVideoReady = () => {
+          if (video.videoWidth > 0 && video.videoHeight > 0) {
+            console.log('Caméra prête:', { width: video.videoWidth, height: video.videoHeight });
+            if (checkIntervalRef.current) {
+              clearInterval(checkIntervalRef.current);
+              checkIntervalRef.current = null;
+            }
+            setCameraReady(true);
+            return true;
           }
-        });
+          return false;
+        };
+        
+        // Vérifier immédiatement
+        if (checkVideoReady()) {
+          return;
+        }
+        
+        // Sinon, vérifier toutes les 100ms avec un timeout de 5 secondes
+        let attempts = 0;
+        const maxAttempts = 50; // 50 * 100ms = 5 secondes
+        
+        checkIntervalRef.current = setInterval(() => {
+          attempts++;
+          if (checkVideoReady() || attempts >= maxAttempts) {
+            if (checkIntervalRef.current) {
+              clearInterval(checkIntervalRef.current);
+              checkIntervalRef.current = null;
+            }
+            if (attempts >= maxAttempts && !checkVideoReady()) {
+              // Timeout mais on essaie quand même si le stream est actif
+              if (streamRef.current && streamRef.current.active) {
+                console.log('Timeout mais stream actif, on force cameraReady');
+                setCameraReady(true);
+              } else {
+                setError('La caméra met trop de temps à démarrer');
+              }
+            }
+          }
+        }, 100);
       }
     } catch (err: any) {
       let errorMessage = 'Impossible d\'accéder à la caméra';
@@ -220,7 +219,7 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
     return () => {
       stopCamera();
     };
-  }, []);
+  }, [stopCamera]);
 
   return (
     <div className="space-y-4">
@@ -234,7 +233,7 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
       {step === 'photo' && (
         <div>
           <h3 className="text-lg font-medium mb-4">Photographier l'étiquette</h3>
-          {cameraReady && videoRef.current && videoRef.current.readyState >= 2 ? (
+          {cameraReady && videoRef.current && videoRef.current.videoWidth > 0 ? (
             <div className="relative">
               <video
                 ref={videoRef}
@@ -379,4 +378,3 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
 };
 
 export default AfficheScanner;
-
