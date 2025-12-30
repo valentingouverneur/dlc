@@ -68,8 +68,11 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
   const fetchOpenFoodData = async (barcode: string) => {
     try {
       const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+      console.log('Open Food Facts response status:', response.data.status);
       if (response.data.status === 1 && response.data.product) {
         const product = response.data.product;
+        console.log('Product trouvé:', product.product_name);
+        
         // Récupérer l'image (priorité: front > url > ingredients > nutrition)
         const imageUrl = product.image_front_url || 
                         product.image_url || 
@@ -79,12 +82,24 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
                         product.image_small_url ||
                         '';
         
+        console.log('Image URL récupérée:', imageUrl);
+        console.log('Toutes les images disponibles:', {
+          image_front_url: product.image_front_url,
+          image_url: product.image_url,
+          image_ingredients_url: product.image_ingredients_url,
+          image_nutrition_url: product.image_nutrition_url,
+          image_front_small_url: product.image_front_small_url,
+          image_small_url: product.image_small_url
+        });
+        
         setOpenFoodData({
           designation: product.product_name_fr || product.product_name || product.generic_name || '',
           brand: product.brands || '',
           weight: product.quantity || '',
           imageUrl: imageUrl,
         });
+      } else {
+        console.log('Produit non trouvé dans Open Food Facts pour EAN:', barcode);
       }
     } catch (err) {
       console.warn('Erreur Open Food Facts:', err);
@@ -122,7 +137,12 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
       }
       if (openFoodData?.imageUrl) {
         afficheData.imageUrl = openFoodData.imageUrl;
+        console.log('Sauvegarde imageUrl:', openFoodData.imageUrl);
+      } else {
+        console.log('Pas d\'imageUrl à sauvegarder');
       }
+      
+      console.log('Données à sauvegarder:', afficheData);
 
       await addDoc(collection(db, 'affiches'), afficheData);
       

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, onSnapshot, deleteDoc, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Affiche } from '../types/Affiche';
 import Modal from '../components/Modal';
 import AfficheScanner from '../components/AfficheScanner';
 import ConfirmModal from '../components/ConfirmModal';
+import axios from 'axios';
 
 const Affiches: React.FC = () => {
   const [affiches, setAffiches] = useState<Affiche[]>([]);
@@ -19,10 +20,14 @@ const Affiches: React.FC = () => {
   useEffect(() => {
     const q = query(collection(db, 'affiches'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const affichesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Affiche[];
+      const affichesData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('Affiche chargée:', { id: doc.id, ean: data.ean, imageUrl: data.imageUrl });
+        return {
+          id: doc.id,
+          ...data
+        };
+      }) as Affiche[];
       setAffiches(affichesData.sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       ));
@@ -50,6 +55,48 @@ const Affiches: React.FC = () => {
     }
   };
 
+  // Fonction pour mettre à jour les images manquantes depuis Open Food Facts
+  const updateMissingImages = async () => {
+    const affichesWithoutImage = affiches.filter(a => !a.imageUrl && a.ean);
+    if (affichesWithoutImage.length === 0) {
+      alert('Tous les produits ont déjà une image');
+      return;
+    }
+
+    if (!confirm(`Mettre à jour ${affichesWithoutImage.length} produit(s) sans image ?`)) {
+      return;
+    }
+
+    let updated = 0;
+    let failed = 0;
+
+    for (const affiche of affichesWithoutImage) {
+      try {
+        const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${affiche.ean}.json`);
+        if (response.data.status === 1 && response.data.product) {
+          const product = response.data.product;
+          const imageUrl = product.image_front_url || 
+                          product.image_url || 
+                          product.image_ingredients_url || 
+                          product.image_nutrition_url ||
+                          product.image_front_small_url ||
+                          product.image_small_url ||
+                          '';
+          
+          if (imageUrl && affiche.id) {
+            await updateDoc(doc(db, 'affiches', affiche.id), { imageUrl });
+            updated++;
+          }
+        }
+      } catch (err) {
+        console.error(`Erreur pour ${affiche.ean}:`, err);
+        failed++;
+      }
+    }
+
+    alert(`Mise à jour terminée : ${updated} mis à jour, ${failed} échecs`);
+  };
+
   const filteredAffiches = affiches.filter(affiche =>
     affiche.designation.toLowerCase().includes(searchTerm.toLowerCase()) ||
     affiche.ean.includes(searchTerm)
@@ -67,12 +114,21 @@ const Affiches: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Affiches</h1>
-        <button
-          onClick={() => setIsScannerOpen(true)}
-          className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
-        >
-          Scanner une étiquette
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={updateMissingImages}
+            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
+            title="Mettre à jour les images manquantes depuis Open Food Facts"
+          >
+            Mettre à jour les images
+          </button>
+          <button
+            onClick={() => setIsScannerOpen(true)}
+            className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
+          >
+            Scanner une étiquette
+          </button>
+        </div>
       </div>
 
       <input
