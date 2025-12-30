@@ -61,11 +61,22 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
         // Essayer de jouer la vidéo
         try {
           await video.play();
+          console.log('Video.play() réussi');
         } catch (playErr) {
           console.warn('Erreur play():', playErr);
         }
         
-        // Vérifier périodiquement que la vidéo est prête
+        // Afficher la vidéo immédiatement si le stream est actif
+        // On ne bloque plus sur la détection des dimensions
+        if (stream.active) {
+          console.log('Stream actif, on affiche la vidéo');
+          // Attendre un peu pour que la vidéo se charge
+          setTimeout(() => {
+            setCameraReady(true);
+          }, 500);
+        }
+        
+        // Vérifier périodiquement que la vidéo est vraiment prête
         // La vidéo est prête quand elle a des dimensions valides
         const checkVideoReady = () => {
           if (video.videoWidth > 0 && video.videoHeight > 0) {
@@ -85,9 +96,9 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
           return;
         }
         
-        // Sinon, vérifier toutes les 100ms avec un timeout de 5 secondes
+        // Sinon, vérifier toutes les 100ms avec un timeout de 3 secondes
         let attempts = 0;
-        const maxAttempts = 50; // 50 * 100ms = 5 secondes
+        const maxAttempts = 30; // 30 * 100ms = 3 secondes
         
         checkIntervalRef.current = setInterval(() => {
           attempts++;
@@ -96,13 +107,11 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
               clearInterval(checkIntervalRef.current);
               checkIntervalRef.current = null;
             }
+            // Même si on n'a pas de dimensions, si le stream est actif, on affiche quand même
             if (attempts >= maxAttempts && !checkVideoReady()) {
-              // Timeout mais on essaie quand même si le stream est actif
               if (streamRef.current && streamRef.current.active) {
                 console.log('Timeout mais stream actif, on force cameraReady');
                 setCameraReady(true);
-              } else {
-                setError('La caméra met trop de temps à démarrer');
               }
             }
           }
@@ -233,7 +242,7 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
       {step === 'photo' && (
         <div>
           <h3 className="text-lg font-medium mb-4">Photographier l'étiquette</h3>
-          {cameraReady && videoRef.current && videoRef.current.videoWidth > 0 ? (
+          {streamRef.current && streamRef.current.active ? (
             <div className="relative">
               <video
                 ref={videoRef}
@@ -245,26 +254,32 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
               <div className="mt-4 flex justify-center">
                 <button
                   onClick={takePhoto}
-                  className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800"
+                  disabled={!cameraReady}
+                  className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Prendre la photo
+                  {cameraReady ? 'Prendre la photo' : 'Chargement...'}
                 </button>
               </div>
+              {!cameraReady && (
+                <p className="text-center text-sm text-gray-500 mt-2">
+                  Attente de la caméra...
+                </p>
+              )}
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <p className="text-red-600 mb-4">{error}</p>
+              <button
+                onClick={startCamera}
+                className="px-4 py-2 bg-black text-white rounded-lg"
+              >
+                Réessayer
+              </button>
             </div>
           ) : (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
               <p className="text-gray-600">Démarrage de la caméra...</p>
-              {error && (
-                <div className="mt-4">
-                  <button
-                    onClick={startCamera}
-                    className="px-4 py-2 bg-black text-white rounded-lg"
-                  >
-                    Réessayer
-                  </button>
-                </div>
-              )}
             </div>
           )}
           <canvas ref={canvasRef} style={{ display: 'none' }} />
