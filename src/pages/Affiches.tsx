@@ -13,6 +13,8 @@ const Affiches: React.FC = () => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [afficheToDelete, setAfficheToDelete] = useState<Affiche | null>(null);
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
 
   useEffect(() => {
     const q = query(collection(db, 'affiches'));
@@ -86,6 +88,7 @@ const Affiches: React.FC = () => {
           <thead>
             <tr className="border-b-2 border-gray-300">
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">EAN</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Photo</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Désignation</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Poids</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Prix</th>
@@ -110,6 +113,60 @@ const Affiches: React.FC = () => {
                       📋
                     </button>
                   </div>
+                </td>
+                <td className="px-4 py-3">
+                  {affiche.imageUrl ? (
+                    <img
+                      src={affiche.imageUrl}
+                      alt={affiche.designation}
+                      className="w-12 h-12 object-cover rounded cursor-move hover:opacity-80 transition-opacity border border-gray-200"
+                      onClick={() => {
+                        setSelectedImageUrl(affiche.imageUrl!);
+                        setImageModalOpen(true);
+                      }}
+                      draggable
+                      onDragStart={async (e) => {
+                        try {
+                          // Télécharger l'image pour le drag and drop
+                          const response = await fetch(affiche.imageUrl!);
+                          const blob = await response.blob();
+                          const file = new File([blob], `${affiche.ean}.jpg`, { type: 'image/jpeg' });
+                          
+                          // Utiliser DataTransfer pour le drag and drop de fichier
+                          const dataTransfer = e.dataTransfer;
+                          dataTransfer.effectAllowed = 'copy';
+                          dataTransfer.setData('text/plain', affiche.imageUrl!);
+                          dataTransfer.setData('text/uri-list', affiche.imageUrl!);
+                          
+                          // Ajouter le fichier pour le drag and drop
+                          if (dataTransfer.items) {
+                            dataTransfer.items.add(file);
+                          }
+                          
+                          // Créer une image de prévisualisation pour le drag
+                          const img = new Image();
+                          img.src = affiche.imageUrl!;
+                          img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            const ctx = canvas.getContext('2d');
+                            if (ctx) {
+                              ctx.drawImage(img, 0, 0);
+                              dataTransfer.setDragImage(canvas, img.width / 2, img.height / 2);
+                            }
+                          };
+                        } catch (err) {
+                          console.error('Erreur lors du drag:', err);
+                          // Fallback simple
+                          e.dataTransfer.setData('text/plain', affiche.imageUrl!);
+                        }
+                      }}
+                      title="Cliquer pour agrandir ou glisser-déposer vers votre logiciel"
+                    />
+                  ) : (
+                    <span className="text-gray-400 text-xs">-</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-900">{affiche.designation}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">{affiche.weight || '-'}</td>
@@ -161,6 +218,67 @@ const Affiches: React.FC = () => {
         title="Supprimer l'affiche"
         message={`Êtes-vous sûr de vouloir supprimer ${afficheToDelete?.designation} ?`}
       />
+
+      {/* Modale pour voir l'image en taille réelle */}
+      {imageModalOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+          onClick={() => setImageModalOpen(false)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] p-4">
+            <img
+              src={selectedImageUrl}
+              alt="Produit"
+              className="max-w-full max-h-[90vh] object-contain rounded-lg cursor-move"
+              onClick={(e) => e.stopPropagation()}
+              draggable
+              onDragStart={async (e) => {
+                try {
+                  // Télécharger l'image pour le drag and drop
+                  const response = await fetch(selectedImageUrl);
+                  const blob = await response.blob();
+                  const file = new File([blob], 'produit.jpg', { type: 'image/jpeg' });
+                  
+                  const dataTransfer = e.dataTransfer;
+                  dataTransfer.effectAllowed = 'copy';
+                  dataTransfer.setData('text/plain', selectedImageUrl);
+                  dataTransfer.setData('text/uri-list', selectedImageUrl);
+                  
+                  if (dataTransfer.items) {
+                    dataTransfer.items.add(file);
+                  }
+                  
+                  // Prévisualisation
+                  const img = new Image();
+                  img.src = selectedImageUrl;
+                  img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                      ctx.drawImage(img, 0, 0);
+                      dataTransfer.setDragImage(canvas, img.width / 2, img.height / 2);
+                    }
+                  };
+                } catch (err) {
+                  console.error('Erreur lors du drag:', err);
+                  e.dataTransfer.setData('text/plain', selectedImageUrl);
+                }
+              }}
+              title="Glisser-déposer vers votre logiciel"
+            />
+            <button
+              onClick={() => setImageModalOpen(false)}
+              className="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

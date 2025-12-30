@@ -70,10 +70,20 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
       const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
       if (response.data.status === 1 && response.data.product) {
         const product = response.data.product;
+        // Récupérer l'image (priorité: front > url > ingredients > nutrition)
+        const imageUrl = product.image_front_url || 
+                        product.image_url || 
+                        product.image_ingredients_url || 
+                        product.image_nutrition_url ||
+                        product.image_front_small_url ||
+                        product.image_small_url ||
+                        '';
+        
         setOpenFoodData({
           designation: product.product_name_fr || product.product_name || product.generic_name || '',
           brand: product.brands || '',
           weight: product.quantity || '',
+          imageUrl: imageUrl,
         });
       }
     } catch (err) {
@@ -109,6 +119,9 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
       }
       if (extractedData?.pricePerKg) {
         afficheData.pricePerKg = extractedData.pricePerKg;
+      }
+      if (openFoodData?.imageUrl) {
+        afficheData.imageUrl = openFoodData.imageUrl;
       }
 
       await addDoc(collection(db, 'affiches'), afficheData);
