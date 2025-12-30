@@ -148,14 +148,23 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
     setSaving(true);
     setError('');
     try {
-      const afficheData: Omit<Affiche, 'id'> = {
+      // Construire l'objet en excluant les valeurs undefined
+      const afficheData: any = {
         ean,
         designation: openFoodData?.designation || extractedData?.designation || 'Produit sans nom',
-        weight: extractedData?.weight || openFoodData?.weight,
-        price: extractedData?.price,
-        pricePerKg: extractedData?.pricePerKg,
         createdAt: new Date().toISOString()
       };
+
+      // Ajouter les champs optionnels seulement s'ils existent
+      if (extractedData?.weight || openFoodData?.weight) {
+        afficheData.weight = extractedData?.weight || openFoodData?.weight;
+      }
+      if (extractedData?.price) {
+        afficheData.price = extractedData.price;
+      }
+      if (extractedData?.pricePerKg) {
+        afficheData.pricePerKg = extractedData.pricePerKg;
+      }
 
       await addDoc(collection(db, 'affiches'), afficheData);
       onClose();
