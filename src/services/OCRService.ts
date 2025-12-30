@@ -6,77 +6,15 @@ export class OCRService {
   static async initialize() {
     if (!this.worker) {
       this.worker = await createWorker('fra+eng');
-      // Configurer l'OCR pour une meilleure précision
-      await this.worker.setParameters({
-        tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ€.,/-: ',
-        tessedit_pageseg_mode: '6', // Assume a single uniform block of text
-      });
     }
     return this.worker;
-  }
-
-  // Améliorer l'image avant OCR (contraste, netteté, niveaux de gris)
-  static preprocessImage(imageDataUrl: string): Promise<string> {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(imageDataUrl);
-          return;
-        }
-
-        // Augmenter la résolution pour une meilleure précision
-        const scale = 2;
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-        
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        
-        // Obtenir les données de l'image
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-        
-        // Améliorer le contraste et la netteté
-        for (let i = 0; i < data.length; i += 4) {
-          // Convertir en niveaux de gris
-          const gray = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
-          
-          // Augmenter le contraste
-          const contrast = 1.5;
-          const factor = (259 * (contrast * 255 + 255)) / (255 * (259 - contrast * 255));
-          let newGray = factor * (gray - 128) + 128;
-          
-          // Normaliser
-          newGray = Math.max(0, Math.min(255, newGray));
-          
-          // Appliquer un filtre de netteté (unsharp mask simplifié)
-          data[i] = newGray;     // R
-          data[i + 1] = newGray; // G
-          data[i + 2] = newGray; // B
-          // Alpha reste inchangé
-        }
-        
-        // Remettre les données modifiées
-        ctx.putImageData(imageData, 0, 0);
-        
-        // Retourner l'image améliorée
-        resolve(canvas.toDataURL('image/jpeg', 0.95));
-      };
-      img.onerror = () => resolve(imageDataUrl);
-      img.src = imageDataUrl;
-    });
   }
 
   static async extractTextFromImage(imageDataUrl: string): Promise<string> {
     const worker = await this.initialize();
     
-    // Pré-traiter l'image pour améliorer la précision
-    const processedImage = await this.preprocessImage(imageDataUrl);
-    
     // Utiliser une meilleure configuration pour l'OCR
-    const { data: { text } } = await worker.recognize(processedImage, {
+    const { data: { text } } = await worker.recognize(imageDataUrl, {
       rectangle: undefined, // Analyser toute l'image
     });
     
