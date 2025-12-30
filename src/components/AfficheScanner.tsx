@@ -46,10 +46,68 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
         }
       });
       streamRef.current = stream;
+      
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setCameraReady(true);
+        const video = videoRef.current;
+        video.srcObject = stream;
+        
+        // Attendre que la vidéo soit vraiment prête avec les événements
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            video.removeEventListener('loadedmetadata', onLoadedMetadata);
+            video.removeEventListener('playing', onPlaying);
+            video.removeEventListener('error', onError);
+            reject(new Error('Timeout: la caméra met trop de temps à démarrer'));
+          }, 10000); // 10 secondes max
+          
+          const onLoadedMetadata = () => {
+            video.play().catch((playErr) => {
+              clearTimeout(timeout);
+              video.removeEventListener('playing', onPlaying);
+              video.removeEventListener('error', onError);
+              reject(playErr);
+            });
+          };
+          
+          const onPlaying = () => {
+            clearTimeout(timeout);
+            video.removeEventListener('loadedmetadata', onLoadedMetadata);
+            video.removeEventListener('error', onError);
+            // Attendre encore un peu pour être sûr que la vidéo joue vraiment
+            setTimeout(() => {
+              setCameraReady(true);
+              resolve();
+            }, 200);
+          };
+          
+          const onError = () => {
+            clearTimeout(timeout);
+            video.removeEventListener('loadedmetadata', onLoadedMetadata);
+            video.removeEventListener('playing', onPlaying);
+            reject(new Error('Erreur lors du chargement de la vidéo'));
+          };
+          
+          // Si la vidéo est déjà chargée, déclencher directement
+          if (video.readyState >= 2) {
+            video.play()
+              .then(() => {
+                if (video.readyState >= 2) {
+                  clearTimeout(timeout);
+                  setTimeout(() => {
+                    setCameraReady(true);
+                    resolve();
+                  }, 200);
+                } else {
+                  video.addEventListener('playing', onPlaying, { once: true });
+                }
+              })
+              .catch(reject);
+          } else {
+            video.addEventListener('loadedmetadata', onLoadedMetadata, { once: true });
+            video.addEventListener('playing', onPlaying, { once: true });
+            video.addEventListener('error', onError, { once: true });
+          }
+        });
       }
     } catch (err: any) {
       let errorMessage = 'Impossible d\'accéder à la caméra';
@@ -66,6 +124,7 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
       
       setError(errorMessage);
       console.error('Erreur caméra:', err);
+      setCameraReady(false);
     }
   }, []);
 
@@ -175,7 +234,7 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
       {step === 'photo' && (
         <div>
           <h3 className="text-lg font-medium mb-4">Photographier l'étiquette</h3>
-          {cameraReady && streamRef.current && videoRef.current?.srcObject ? (
+          {cameraReady && videoRef.current && videoRef.current.readyState >= 2 ? (
             <div className="relative">
               <video
                 ref={videoRef}
@@ -198,12 +257,14 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
               <p className="text-gray-600">Démarrage de la caméra...</p>
               {error && (
-                <button
-                  onClick={startCamera}
-                  className="mt-4 px-4 py-2 bg-black text-white rounded-lg"
-                >
-                  Réessayer
-                </button>
+                <div className="mt-4">
+                  <button
+                    onClick={startCamera}
+                    className="px-4 py-2 bg-black text-white rounded-lg"
+                  >
+                    Réessayer
+                  </button>
+                </div>
               )}
             </div>
           )}
