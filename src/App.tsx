@@ -4,6 +4,7 @@ import Calendar from './pages/Calendar';
 import Products from './pages/Products';
 import Scanner from './pages/Scanner';
 import ProductDetails from './pages/ProductDetails';
+import Affiches from './pages/Affiches';
 import Navbar from './components/Navbar';
 import Modal from './components/Modal';
 import FloatingScannerButton from './components/FloatingScannerButton';
@@ -27,6 +28,7 @@ function App() {
             <Route path="/" element={<Calendar key={refreshKey} />} />
             <Route path="/products" element={<Products key={refreshKey} />} />
             <Route path="/product/:id" element={<ProductDetails />} />
+            <Route path="/affiches" element={<Affiches key={refreshKey} />} />
           </Routes>
         </div>
         <MobileBlurEffect />

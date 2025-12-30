@@ -24,7 +24,8 @@
     "react": "^18.2.0",
     "react-barcode-reader": "^0.0.2",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.22.1"
+    "react-router-dom": "^6.22.1",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.55",
