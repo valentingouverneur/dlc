@@ -73,48 +73,14 @@ const Affiches: React.FC = () => {
 
     for (const affiche of affichesWithoutImage) {
       try {
-        const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${affiche.ean}.json`);
-        if (response.data.status === 1 && response.data.product) {
-          const product = response.data.product;
-          
-          // Convertir vers haute résolution
-          const convertToHighRes = (url: string | undefined): string => {
-            if (!url) return '';
-            return url.replace(/\/images\/products\/(\d+)\/(\d+)\/(\d+)\.jpg$/, '/images/products/$1/$2/full/$2.jpg');
-          };
-          
-          let imageUrl = '';
-          if (product.image_front_url) {
-            imageUrl = convertToHighRes(product.image_front_url) || product.image_front_url;
-          }
-          else if (product.image_url) {
-            imageUrl = convertToHighRes(product.image_url) || product.image_url;
-          }
-          else if (product.image_front_small_url) {
-            imageUrl = convertToHighRes(product.image_front_small_url) || product.image_front_small_url;
-          }
-          else if (product.image_ingredients_url) {
-            imageUrl = convertToHighRes(product.image_ingredients_url) || product.image_ingredients_url;
-          }
-          else if (product.image_nutrition_url) {
-            imageUrl = convertToHighRes(product.image_nutrition_url) || product.image_nutrition_url;
-          }
-          else if (product.image_small_url) {
-            imageUrl = convertToHighRes(product.image_small_url) || product.image_small_url;
-          }
-          
-          if (imageUrl && affiche.id) {
-            await updateDoc(doc(db, 'affiches', affiche.id), { imageUrl });
-            updated++;
-          } else {
-            // Si pas d'image Open Food Facts, essayer Google Images
-            console.log(`Pas d'image Open Food Facts pour ${affiche.ean}, recherche Google Images...`);
-            const googleImage = await ImageSearchService.searchImage(affiche.ean, affiche.designation);
-            if (googleImage && affiche.id) {
-              await updateDoc(doc(db, 'affiches', affiche.id), { imageUrl: googleImage });
-              updated++;
-            }
-          }
+        // Rechercher uniquement depuis Google Images (packshots professionnels)
+        console.log(`Recherche packshot pour ${affiche.ean}...`);
+        const googleImage = await ImageSearchService.searchImage(affiche.ean, affiche.designation);
+        if (googleImage && affiche.id) {
+          await updateDoc(doc(db, 'affiches', affiche.id), { imageUrl: googleImage });
+          updated++;
+        } else {
+          failed++;
         }
       } catch (err) {
         console.error(`Erreur pour ${affiche.ean}:`, err);
@@ -146,7 +112,7 @@ const Affiches: React.FC = () => {
           <button
             onClick={updateMissingImages}
             className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
-            title="Mettre à jour les images manquantes depuis Open Food Facts"
+            title="Mettre à jour les images manquantes depuis Google Images (packshots professionnels)"
           >
             Mettre à jour les images
           </button>

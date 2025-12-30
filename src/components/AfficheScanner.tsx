@@ -74,68 +74,18 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
         const product = response.data.product;
         console.log('Product trouvé:', product.product_name);
         
-        // Récupérer l'image en priorisant la meilleure qualité
-        // Open Food Facts : convertir les URLs en haute résolution
-        // Format: https://images.openfoodfacts.org/images/products/[code]/[num]/[taille].jpg
-        // On remplace la taille par "full" pour obtenir la meilleure qualité
-        
-        const convertToHighRes = (url: string | undefined): string => {
-          if (!url) return '';
-          // Convertir vers haute résolution
-          // Exemple: .../123/456/1.jpg -> .../123/456/full/1.jpg
-          // Ou: .../123/456/400.jpg -> .../123/456/full/1.jpg
-          return url.replace(/\/images\/products\/(\d+)\/(\d+)\/(\d+)\.jpg$/, '/images/products/$1/$2/full/$2.jpg');
-        };
-        
-        let imageUrl = '';
-        
-        // Priorité 1: image_front_url (image principale face avant)
-        if (product.image_front_url) {
-          imageUrl = convertToHighRes(product.image_front_url) || product.image_front_url;
-        }
-        // Priorité 2: image_url (image générique)
-        else if (product.image_url) {
-          imageUrl = convertToHighRes(product.image_url) || product.image_url;
-        }
-        // Priorité 3: image_front_small_url (petite mais face avant)
-        else if (product.image_front_small_url) {
-          imageUrl = convertToHighRes(product.image_front_small_url) || product.image_front_small_url;
-        }
-        // Priorité 4: autres images
-        else if (product.image_ingredients_url) {
-          imageUrl = convertToHighRes(product.image_ingredients_url) || product.image_ingredients_url;
-        }
-        else if (product.image_nutrition_url) {
-          imageUrl = convertToHighRes(product.image_nutrition_url) || product.image_nutrition_url;
-        }
-        else if (product.image_small_url) {
-          imageUrl = convertToHighRes(product.image_small_url) || product.image_small_url;
-        }
-        
-        console.log('Image URL récupérée (haute résolution):', imageUrl);
-        
         const designation = product.product_name_fr || product.product_name || product.generic_name || '';
+        
+        // Rechercher directement une image packshot depuis Google Images (pas d'images Open Food Facts)
+        console.log('Recherche packshot professionnel depuis Google Images...');
+        const googleImage = await ImageSearchService.searchImage(barcode, designation);
         
         setOpenFoodData({
           designation: designation,
           brand: product.brands || '',
           weight: product.quantity || '',
-          imageUrl: imageUrl,
+          imageUrl: googleImage || '', // Utiliser uniquement Google Images
         });
-
-        // Si l'image Open Food Facts est de mauvaise qualité ou absente,
-        // essayer de récupérer une image depuis Google Images
-        if (!imageUrl || imageUrl.includes('small') || imageUrl.includes('200')) {
-          console.log('Recherche image de meilleure qualité depuis Google Images...');
-          const googleImage = await ImageSearchService.searchImage(barcode, designation);
-          if (googleImage) {
-            console.log('Image Google trouvée, remplacement de l\'image Open Food Facts');
-            setOpenFoodData(prev => ({
-              ...prev,
-              imageUrl: googleImage,
-            }));
-          }
-        }
       } else {
         console.log('Produit non trouvé dans Open Food Facts pour EAN:', barcode);
         // Essayer quand même Google Images même si pas trouvé sur Open Food Facts

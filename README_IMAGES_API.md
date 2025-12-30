@@ -1,11 +1,11 @@
-# Configuration des APIs d'images
+# Configuration de l'API Google Images
 
-Pour améliorer la qualité des images récupérées, vous pouvez configurer des APIs de recherche d'images.
-
-## Option 1 : Google Custom Search API (Recommandé)
+L'application utilise **uniquement Google Custom Search API** pour récupérer des packshots professionnels (images de produits professionnelles) plutôt que des photos prises par des utilisateurs.
 
 ### Avantages
-- Images de grande qualité depuis les grandes enseignes
+- Packshots professionnels (images de produits professionnelles)
+- Priorise les grandes enseignes (Leclerc, Carrefour, etc.)
+- Exclut automatiquement les sites de photos utilisateurs (Open Food Facts, Flickr, etc.)
 - 100 requêtes/jour gratuites
 - Très fiable
 
@@ -41,33 +41,13 @@ Pour améliorer la qualité des images récupérées, vous pouvez configurer des
      VITE_GOOGLE_CSE_ID=votre_search_engine_id
      ```
 
-## Option 2 : Bing Image Search API (Alternative gratuite)
-
-### Avantages
-- Gratuit (avec limites)
-- Pas besoin de créer un Custom Search Engine
-
-### Configuration
-
-1. **Créer une clé API Bing** :
-   - Aller sur https://www.microsoft.com/en-us/bing/apis/bing-image-search-api
-   - Cliquer sur "Get started for free"
-   - Créer un compte Azure (gratuit)
-   - Créer une ressource "Bing Search v7"
-   - Copier la clé API
-
-2. **Configurer la variable d'environnement** :
-   - Dans le fichier `.env` :
-     ```
-     VITE_BING_API_KEY=votre_cle_bing
-     ```
-
 ## Utilisation
 
 Une fois configuré, l'application :
-1. Récupère d'abord l'image depuis Open Food Facts
-2. Si l'image est de mauvaise qualité ou absente, recherche automatiquement sur Google Images / Bing
-3. Priorise les images des grandes enseignes (Leclerc, Carrefour, Auchan, etc.)
+1. Recherche automatiquement des packshots professionnels depuis Google Images
+2. Priorise les images des grandes enseignes (Leclerc, Carrefour, Auchan, etc.)
+3. Exclut automatiquement les sites de photos utilisateurs (Open Food Facts, Flickr, Pinterest, etc.)
+4. Privilégie les images de type "packshot" (photos professionnelles de produits)
 
 ## Note
 
