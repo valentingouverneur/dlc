@@ -17,6 +17,7 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>('');
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -39,11 +40,30 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
     setCameraReady(false);
   }, []);
 
+  // Mettre à jour les infos de debug
+  const updateDebugInfo = useCallback(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    
+    const info = [
+      `Stream: ${stream ? (stream.active ? 'ACTIF' : 'INACTIF') : 'NULL'}`,
+      `Video: ${video ? 'EXISTE' : 'NULL'}`,
+      `Video srcObject: ${video?.srcObject ? 'OUI' : 'NON'}`,
+      `Video dimensions: ${video ? `${video.videoWidth}x${video.videoHeight}` : 'N/A'}`,
+      `Video readyState: ${video ? video.readyState : 'N/A'}`,
+      `Video paused: ${video ? video.paused : 'N/A'}`,
+      `Camera ready: ${cameraReady ? 'OUI' : 'NON'}`,
+    ];
+    
+    setDebugInfo(info.join(' | '));
+  }, [cameraReady]);
+
   // Démarrer la caméra pour la photo
   const startCamera = useCallback(async () => {
     try {
       setError('');
       setCameraReady(false);
+      setDebugInfo('Démarrage...');
       
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
@@ -53,39 +73,45 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
         }
       });
       streamRef.current = stream;
+      setDebugInfo('Stream obtenu, actif: ' + stream.active);
       
       if (videoRef.current) {
         const video = videoRef.current;
         video.srcObject = stream;
+        updateDebugInfo();
         
         // Essayer de jouer la vidéo
         try {
           await video.play();
-          console.log('Video.play() réussi');
-        } catch (playErr) {
-          console.warn('Erreur play():', playErr);
+          setDebugInfo(prev => prev + ' | play() OK');
+        } catch (playErr: any) {
+          setDebugInfo(prev => prev + ' | play() ERREUR: ' + playErr.message);
         }
         
         // Afficher la vidéo immédiatement si le stream est actif
-        // On ne bloque plus sur la détection des dimensions
         if (stream.active) {
-          console.log('Stream actif, on affiche la vidéo');
-          // Attendre un peu pour que la vidéo se charge
+          setDebugInfo(prev => prev + ' | Stream actif, attente 500ms');
           setTimeout(() => {
-            setCameraReady(true);
+            updateDebugInfo();
+            if (video.videoWidth > 0 && video.videoHeight > 0) {
+              setCameraReady(true);
+              setDebugInfo(prev => prev + ' | CAMERA READY');
+            } else {
+              setDebugInfo(prev => prev + ' | Pas de dimensions encore');
+            }
           }, 500);
         }
         
         // Vérifier périodiquement que la vidéo est vraiment prête
-        // La vidéo est prête quand elle a des dimensions valides
         const checkVideoReady = () => {
+          updateDebugInfo();
           if (video.videoWidth > 0 && video.videoHeight > 0) {
-            console.log('Caméra prête:', { width: video.videoWidth, height: video.videoHeight });
             if (checkIntervalRef.current) {
               clearInterval(checkIntervalRef.current);
               checkIntervalRef.current = null;
             }
             setCameraReady(true);
+            setDebugInfo(prev => prev + ' | CAMERA READY (dimensions OK)');
             return true;
           }
           return false;
@@ -96,26 +122,29 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
           return;
         }
         
-        // Sinon, vérifier toutes les 100ms avec un timeout de 3 secondes
+        // Sinon, vérifier toutes les 200ms avec un timeout de 5 secondes
         let attempts = 0;
-        const maxAttempts = 30; // 30 * 100ms = 3 secondes
+        const maxAttempts = 25; // 25 * 200ms = 5 secondes
         
         checkIntervalRef.current = setInterval(() => {
           attempts++;
+          updateDebugInfo();
           if (checkVideoReady() || attempts >= maxAttempts) {
             if (checkIntervalRef.current) {
               clearInterval(checkIntervalRef.current);
               checkIntervalRef.current = null;
             }
-            // Même si on n'a pas de dimensions, si le stream est actif, on affiche quand même
+            // Même si on n'a pas de dimensions, si le stream est actif, on force
             if (attempts >= maxAttempts && !checkVideoReady()) {
               if (streamRef.current && streamRef.current.active) {
-                console.log('Timeout mais stream actif, on force cameraReady');
                 setCameraReady(true);
+                setDebugInfo(prev => prev + ' | FORCE READY (stream actif)');
+              } else {
+                setDebugInfo(prev => prev + ' | TIMEOUT');
               }
             }
           }
-        }, 100);
+        }, 200);
       }
     } catch (err: any) {
       let errorMessage = 'Impossible d\'accéder à la caméra';
@@ -131,10 +160,10 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
       }
       
       setError(errorMessage);
-      console.error('Erreur caméra:', err);
+      setDebugInfo('ERREUR: ' + err.name + ' - ' + err.message);
       setCameraReady(false);
     }
-  }, []);
+  }, [updateDebugInfo]);
 
   // Démarrer la caméra automatiquement
   useEffect(() => {
@@ -230,11 +259,28 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
     };
   }, [stopCamera]);
 
+  // Mettre à jour les infos de debug périodiquement
+  useEffect(() => {
+    if (step === 'photo') {
+      const interval = setInterval(() => {
+        updateDebugInfo();
+      }, 500);
+      return () => clearInterval(interval);
+    }
+  }, [step, updateDebugInfo]);
+
   return (
     <div className="space-y-4">
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
           {error}
+        </div>
+      )}
+
+      {/* Debug info */}
+      {debugInfo && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-3 py-2 rounded text-xs font-mono break-all">
+          <strong>Debug:</strong> {debugInfo}
         </div>
       )}
 
