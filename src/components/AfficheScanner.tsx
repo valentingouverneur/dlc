@@ -1,5 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { OCRService } from '../services/OCRService';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -9,81 +8,22 @@ interface AfficheScannerProps {
   onClose: () => void;
 }
 
-interface Html5QrcodeScannerConfig {
-  fps: number;
-  qrbox: { width: number; height: number };
-  aspectRatio: number;
-}
-
 const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
-  const [step, setStep] = useState<'barcode' | 'photo' | 'processing' | 'result'>('barcode');
+  const [step, setStep] = useState<'photo' | 'processing' | 'result'>('photo');
   const [ean, setEan] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const [extractedData, setExtractedData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Scanner de code-barres
-  useEffect(() => {
-    if (step === 'barcode') {
-      const config: Html5QrcodeScannerConfig = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0
-      };
-
-      scannerRef.current = new Html5QrcodeScanner(
-        'barcode-scanner',
-        config,
-        false
-      );
-
-      scannerRef.current.render(
-        (decodedText: string) => {
-          setEan(decodedText);
-          if (scannerRef.current) {
-            scannerRef.current.clear();
-            scannerRef.current = null;
-          }
-          setStep('photo');
-        },
-        (errorMessage: string) => {
-          // Ignorer les erreurs de scan
-        }
-      );
-
-      return () => {
-        if (scannerRef.current) {
-          scannerRef.current.clear();
-        }
-      };
-    }
-  }, [step]);
-
-  // Démarrer la caméra pour la photo
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (err) {
-      setError('Impossible d\'accéder à la caméra');
-      console.error(err);
-    }
-  };
-
   // Arrêter la caméra
-  const stopCamera = () => {
+  const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -91,7 +31,53 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-  };
+  }, []);
+
+  // Démarrer la caméra pour la photo
+  const startCamera = useCallback(async () => {
+    try {
+      setError('');
+      setCameraReady(false);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+        setCameraReady(true);
+      }
+    } catch (err: any) {
+      let errorMessage = 'Impossible d\'accéder à la caméra';
+      
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errorMessage = 'L\'accès à la caméra a été refusé. Veuillez autoriser l\'accès dans les paramètres de votre navigateur.';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errorMessage = 'Aucune caméra n\'a été trouvée sur votre appareil.';
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        errorMessage = 'La caméra est peut-être utilisée par une autre application.';
+      } else {
+        errorMessage = `Erreur: ${err.message}`;
+      }
+      
+      setError(errorMessage);
+      console.error('Erreur caméra:', err);
+    }
+  }, []);
+
+  // Démarrer la caméra automatiquement
+  useEffect(() => {
+    if (step === 'photo') {
+      startCamera();
+    }
+    return () => {
+      stopCamera();
+    };
+  }, [step, startCamera, stopCamera]);
 
   // Prendre la photo
   const takePhoto = () => {
@@ -122,17 +108,21 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
       const text = await OCRService.extractTextFromImage(imageDataUrl);
       const parsed = OCRService.parseLabelText(text);
       
+      // Utiliser l'EAN extrait par OCR ou laisser vide pour saisie manuelle
+      setEan(parsed.ean || '');
+      
       setExtractedData({
         ...parsed,
         rawText: text
       });
       
-      // Supprimer la photo de la mémoire (elle n'est plus dans le state)
+      // Supprimer la photo de la mémoire
       setPhoto(null);
       setStep('result');
     } catch (err) {
-      setError('Erreur lors de l\'extraction du texte');
-      console.error(err);
+      setError('Erreur lors de l\'extraction du texte. Veuillez réessayer.');
+      console.error('Erreur OCR:', err);
+      setStep('photo');
     } finally {
       setLoading(false);
     }
@@ -140,7 +130,10 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
 
   // Enregistrer dans Firestore
   const handleSave = async () => {
-    if (!ean || !extractedData) return;
+    if (!ean || !extractedData) {
+      setError('Le code-barres (EAN) est obligatoire');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -167,9 +160,6 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
   useEffect(() => {
     return () => {
       stopCamera();
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-      }
     };
   }, []);
 
@@ -181,70 +171,77 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
         </div>
       )}
 
-      {/* Étape 1 : Scanner le code-barres */}
-      {step === 'barcode' && (
-        <div>
-          <h3 className="text-lg font-medium mb-4">Étape 1 : Scanner le code-barres</h3>
-          <div id="barcode-scanner" className="w-full max-w-md mx-auto" />
-        </div>
-      )}
-
-      {/* Étape 2 : Prendre la photo de l'étiquette */}
+      {/* Étape 1 : Prendre la photo de l'étiquette */}
       {step === 'photo' && (
         <div>
-          <h3 className="text-lg font-medium mb-4">Étape 2 : Photographier l'étiquette</h3>
-          <div className="relative">
-            {!streamRef.current ? (
-              <button
-                onClick={startCamera}
-                className="w-full px-4 py-3 bg-black text-white rounded-lg"
-              >
-                Démarrer la caméra
-              </button>
-            ) : (
-              <>
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  className="w-full rounded-lg"
-                />
-                <div className="mt-4 flex justify-center">
-                  <button
-                    onClick={takePhoto}
-                    className="px-6 py-3 bg-black text-white rounded-lg"
-                  >
-                    Prendre la photo
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          <h3 className="text-lg font-medium mb-4">Photographier l'étiquette</h3>
+          {cameraReady && streamRef.current && videoRef.current?.srcObject ? (
+            <div className="relative">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full rounded-lg"
+              />
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={takePhoto}
+                  className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800"
+                >
+                  Prendre la photo
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
+              <p className="text-gray-600">Démarrage de la caméra...</p>
+              {error && (
+                <button
+                  onClick={startCamera}
+                  className="mt-4 px-4 py-2 bg-black text-white rounded-lg"
+                >
+                  Réessayer
+                </button>
+              )}
+            </div>
+          )}
           <canvas ref={canvasRef} style={{ display: 'none' }} />
         </div>
       )}
 
-      {/* Étape 3 : Traitement OCR */}
+      {/* Étape 2 : Traitement OCR */}
       {step === 'processing' && (
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
           <p className="text-gray-600">Extraction des informations...</p>
+          <p className="text-sm text-gray-500 mt-2">Cela peut prendre quelques secondes</p>
         </div>
       )}
 
-      {/* Étape 4 : Résultat et validation */}
+      {/* Étape 3 : Résultat et validation */}
       {step === 'result' && extractedData && (
         <div>
           <h3 className="text-lg font-medium mb-4">Informations extraites</h3>
           <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
             <div>
-              <label className="text-sm font-medium text-gray-700">Code-barres (EAN)</label>
+              <label className="text-sm font-medium text-gray-700">
+                Code-barres (EAN) <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 value={ean}
                 onChange={(e) => setEan(e.target.value)}
-                className="w-full mt-1 p-2 border border-gray-300 rounded-lg"
+                className="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+                placeholder="Saisir ou scanner le code-barres"
+                required
               />
+              {extractedData.ean && extractedData.ean !== ean && (
+                <p className="text-xs text-gray-500 mt-1">
+                  EAN détecté par OCR: {extractedData.ean}
+                </p>
+              )}
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700">Désignation</label>
@@ -252,7 +249,7 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
                 type="text"
                 value={extractedData.designation}
                 onChange={(e) => setExtractedData({ ...extractedData, designation: e.target.value })}
-                className="w-full mt-1 p-2 border border-gray-300 rounded-lg"
+                className="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
               />
             </div>
             <div>
@@ -261,7 +258,7 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
                 type="text"
                 value={extractedData.weight || ''}
                 onChange={(e) => setExtractedData({ ...extractedData, weight: e.target.value })}
-                className="w-full mt-1 p-2 border border-gray-300 rounded-lg"
+                className="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
                 placeholder="ex: 500g"
               />
             </div>
@@ -271,7 +268,7 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
                 type="text"
                 value={extractedData.price || ''}
                 onChange={(e) => setExtractedData({ ...extractedData, price: e.target.value })}
-                className="w-full mt-1 p-2 border border-gray-300 rounded-lg"
+                className="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
                 placeholder="ex: 29,99 €"
               />
             </div>
@@ -281,12 +278,25 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
                 type="text"
                 value={extractedData.pricePerKg || ''}
                 onChange={(e) => setExtractedData({ ...extractedData, pricePerKg: e.target.value })}
-                className="w-full mt-1 p-2 border border-gray-300 rounded-lg"
+                className="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
                 placeholder="ex: 59,98 €/kg"
               />
             </div>
           </div>
           <div className="mt-6 flex justify-end space-x-3">
+            <button
+              onClick={() => {
+                stopCamera();
+                setStep('photo');
+                setEan('');
+                setExtractedData(null);
+                setError('');
+                setCameraReady(false);
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Reprendre une photo
+            </button>
             <button
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -302,15 +312,6 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
             </button>
           </div>
         </div>
-      )}
-
-      {step !== 'processing' && step !== 'result' && (
-        <button
-          onClick={onClose}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-        >
-          Annuler
-        </button>
       )}
     </div>
   );

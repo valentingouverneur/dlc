@@ -46,9 +46,14 @@ export class OCRService {
       ? `${pricePerKgMatch[1].replace('.', ',')} €/kg` 
       : undefined;
 
-    // EAN : 13 chiffres consécutifs
-    const eanMatch = text.replace(/\s/g, '').match(/\d{13}/);
-    const ean = eanMatch ? eanMatch[0] : undefined;
+    // EAN : 13 chiffres consécutifs (chercher dans tout le texte)
+    const cleanText = text.replace(/\s/g, '');
+    const eanMatch = cleanText.match(/\d{13}/);
+    // Si pas trouvé, chercher aussi des séquences de 12-14 chiffres (tolérance OCR)
+    const eanMatch2 = !eanMatch ? cleanText.match(/\d{12,14}/) : null;
+    const ean = eanMatch 
+      ? eanMatch[0] 
+      : (eanMatch2 && eanMatch2[0].length === 13 ? eanMatch2[0] : undefined);
 
     return {
       designation: designation.trim(),
