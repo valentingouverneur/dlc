@@ -75,13 +75,32 @@ const Affiches: React.FC = () => {
         const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${affiche.ean}.json`);
         if (response.data.status === 1 && response.data.product) {
           const product = response.data.product;
-          const imageUrl = product.image_front_url || 
-                          product.image_url || 
-                          product.image_ingredients_url || 
-                          product.image_nutrition_url ||
-                          product.image_front_small_url ||
-                          product.image_small_url ||
-                          '';
+          
+          // Convertir vers haute résolution
+          const convertToHighRes = (url: string | undefined): string => {
+            if (!url) return '';
+            return url.replace(/\/images\/products\/(\d+)\/(\d+)\/(\d+)\.jpg$/, '/images/products/$1/$2/full/$2.jpg');
+          };
+          
+          let imageUrl = '';
+          if (product.image_front_url) {
+            imageUrl = convertToHighRes(product.image_front_url) || product.image_front_url;
+          }
+          else if (product.image_url) {
+            imageUrl = convertToHighRes(product.image_url) || product.image_url;
+          }
+          else if (product.image_front_small_url) {
+            imageUrl = convertToHighRes(product.image_front_small_url) || product.image_front_small_url;
+          }
+          else if (product.image_ingredients_url) {
+            imageUrl = convertToHighRes(product.image_ingredients_url) || product.image_ingredients_url;
+          }
+          else if (product.image_nutrition_url) {
+            imageUrl = convertToHighRes(product.image_nutrition_url) || product.image_nutrition_url;
+          }
+          else if (product.image_small_url) {
+            imageUrl = convertToHighRes(product.image_small_url) || product.image_small_url;
+          }
           
           if (imageUrl && affiche.id) {
             await updateDoc(doc(db, 'affiches', affiche.id), { imageUrl });
