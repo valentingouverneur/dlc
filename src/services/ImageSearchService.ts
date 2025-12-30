@@ -52,9 +52,16 @@ export class ImageSearchService {
       const response = await axios.get(url, { params });
       
       console.log('✅ Réponse Google:', response.data);
+      console.log('📊 Informations de recherche:', response.data.searchInformation);
+      console.log('🔍 Requêtes:', response.data.queries);
       
       if (response.data.items && response.data.items.length > 0) {
         console.log(`📸 ${response.data.items.length} images trouvées`);
+        console.log('🖼️ Premières images:', response.data.items.slice(0, 3).map(item => ({
+          link: item.link,
+          displayLink: item.displayLink,
+          title: item.title
+        })));
         // Domaines privilégiés : grandes enseignes et sites professionnels
         const preferredDomains = [
           'leclerc', 'carrefour', 'auchan', 'intermarche', 'monoprix', 'casino',
@@ -108,6 +115,8 @@ export class ImageSearchService {
         return firstImage.link;
       }
       
+      console.warn('⚠️ Aucune image trouvée dans la réponse Google');
+      console.log('Réponse complète:', JSON.stringify(response.data, null, 2));
       return null;
     } catch (err: any) {
       console.error('❌ Erreur Google Images:', err);
