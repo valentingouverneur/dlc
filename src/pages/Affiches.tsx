@@ -39,9 +39,13 @@ const Affiches: React.FC = () => {
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    alert('Copié dans le presse-papier !');
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      // Pas de modal, copie silencieuse
+    } catch (err) {
+      console.error('Erreur lors de la copie:', err);
+    }
   };
 
   const filteredAffiches = affiches.filter(affiche =>
@@ -77,59 +81,58 @@ const Affiches: React.FC = () => {
         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
       />
 
-      <div className="space-y-4">
-        {filteredAffiches.map((affiche) => (
-          <div
-            key={affiche.id}
-            className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h3 className="font-medium text-gray-900 mb-2">{affiche.designation}</h3>
-                <div className="space-y-1 text-sm text-gray-600">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse bg-white">
+          <thead>
+            <tr className="border-b-2 border-gray-300">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">EAN</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Désignation</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Poids</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Prix</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Prix/kg</th>
+              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredAffiches.map((affiche) => (
+              <tr
+                key={affiche.id}
+                className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                <td className="px-4 py-3">
                   <div className="flex items-center space-x-2">
-                    <span className="font-medium">EAN:</span>
-                    <span className="font-mono">{affiche.ean}</span>
+                    <span className="font-mono text-sm">{affiche.ean}</span>
                     <button
                       onClick={() => copyToClipboard(affiche.ean)}
-                      className="text-blue-600 hover:text-blue-800 text-xs"
+                      className="text-blue-600 hover:text-blue-800 text-sm"
                       title="Copier l'EAN"
                     >
                       📋
                     </button>
                   </div>
-                  {affiche.weight && (
-                    <div>
-                      <span className="font-medium">Poids:</span> {affiche.weight}
-                    </div>
-                  )}
-                  {affiche.price && (
-                    <div>
-                      <span className="font-medium">Prix:</span> {affiche.price}
-                    </div>
-                  )}
-                  {affiche.pricePerKg && (
-                    <div>
-                      <span className="font-medium">Prix/kg:</span> {affiche.pricePerKg}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setAfficheToDelete(affiche);
-                  setDeleteModalOpen(true);
-                }}
-                className="ml-4 p-2 text-gray-400 hover:text-red-500 transition-colors"
-                title="Supprimer"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        ))}
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-900">{affiche.designation}</td>
+                <td className="px-4 py-3 text-sm text-gray-600">{affiche.weight || '-'}</td>
+                <td className="px-4 py-3 text-sm text-gray-600">{affiche.price || '-'}</td>
+                <td className="px-4 py-3 text-sm text-gray-600">{affiche.pricePerKg || '-'}</td>
+                <td className="px-4 py-3 text-center">
+                  <button
+                    onClick={() => {
+                      setAfficheToDelete(affiche);
+                      setDeleteModalOpen(true);
+                    }}
+                    className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                    title="Supprimer"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {filteredAffiches.length === 0 && (
