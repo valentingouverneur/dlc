@@ -194,215 +194,271 @@ const Affiches: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Affiches</h1>
-        <div className="flex space-x-2">
-          <button
-            onClick={updateMissingImages}
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
-            title="Mettre à jour les images manquantes depuis Google Images (packshots professionnels)"
-          >
-            Mettre à jour les images
-          </button>
-          <button
-            onClick={() => setIsScannerOpen(true)}
-            className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
-          >
-            Scanner une étiquette
-          </button>
-        </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Rechercher par désignation ou EAN..."
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
-          />
-        </div>
-        <div className="sm:w-64">
-          <select
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black bg-white"
-          >
-            <option value="">Toutes les dates</option>
-            {uniqueDates.map(date => {
-              const dateObj = new Date(date);
-              const formattedDate = dateObj.toLocaleDateString('fr-FR', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              });
-              return (
-                <option key={date} value={date}>
-                  {formattedDate}
-                </option>
-              );
-            })}
-          </select>
-        </div>
-      </div>
-
-      {/* Barre d'actions pour les affiches sélectionnées */}
-      {selectedAffiches.size > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
-          <span className="text-sm font-medium text-blue-900">
-            {selectedAffiches.size} affiche(s) sélectionnée(s)
-          </span>
-          <div className="flex space-x-2">
+    <div className="bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="border-b border-gray-200 bg-white px-6 py-4">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-semibold text-gray-900">Affiches</h1>
+          <div className="flex items-center space-x-3">
             <button
               onClick={handleExportEANs}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+              disabled={selectedAffiches.size === 0}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >
-              Exporter la liste
+              <span>EXPORT</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </button>
             <button
-              onClick={handleDeleteSelected}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+              onClick={() => setIsScannerOpen(true)}
+              className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 flex items-center space-x-2"
             >
-              Supprimer les sélectionnés
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>SCANNER</span>
             </button>
           </div>
         </div>
-      )}
+      </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse bg-white">
-          <thead>
-            <tr className="border-b-2 border-gray-300">
-              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 w-12">
-                <input
-                  type="checkbox"
-                  checked={selectAll}
-                  onChange={handleSelectAll}
-                  className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black"
-                  title="Sélectionner tout"
-                />
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">EAN</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Photo</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Désignation</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Poids</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Prix</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Prix/kg</th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredAffiches.map((affiche) => (
-              <tr
-                key={affiche.id}
-                className={`border-b border-gray-200 hover:bg-gray-50 transition-colors ${
-                  selectedAffiches.has(affiche.id!) ? 'bg-blue-50' : ''
-                }`}
-              >
-                <td className="px-4 py-3 text-center">
+      {/* Search and Filters */}
+      <div className="border-b border-gray-200 bg-white px-6 py-4">
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1 relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Rechercher par désignation ou EAN..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            />
+          </div>
+          <div className="flex gap-3">
+            <select
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm cursor-pointer"
+            >
+              <option value="">Toutes les dates</option>
+              {uniqueDates.map(date => {
+                const dateObj = new Date(date);
+                const formattedDate = dateObj.toLocaleDateString('fr-FR', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                });
+                return (
+                  <option key={date} value={date}>
+                    {formattedDate}
+                  </option>
+                );
+              })}
+            </select>
+            <button
+              onClick={updateMissingImages}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              <span>Plus de filtres</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Summary */}
+      <div className="border-b border-gray-200 bg-white px-6 py-3">
+        <div className="flex items-center space-x-6">
+          <span className="text-sm font-medium text-green-600 border-b-2 border-green-600 pb-1">
+            TOUTES {affiches.length}
+          </span>
+          <span className="text-sm font-medium text-gray-600">
+            FILTRÉES {filteredAffiches.length}
+          </span>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="px-6 py-4">
+        <div className="overflow-x-auto bg-white rounded-lg border border-gray-200">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-12">
                   <input
                     type="checkbox"
-                    checked={affiche.id ? selectedAffiches.has(affiche.id) : false}
-                    onChange={() => affiche.id && handleSelectAffiche(affiche.id)}
-                    className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black"
+                    checked={selectAll}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    title="Sélectionner tout"
                   />
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-mono text-sm">{affiche.ean}</span>
-                    <button
-                      onClick={() => copyToClipboard(affiche.ean)}
-                      className="text-blue-600 hover:text-blue-800 text-sm"
-                      title="Copier l'EAN"
-                    >
-                      📋
-                    </button>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  {affiche.imageUrl ? (
-                    <img
-                      src={affiche.imageUrl}
-                      alt={affiche.designation}
-                      className="w-12 h-12 object-cover rounded cursor-move hover:opacity-80 transition-opacity border border-gray-200"
-                      onClick={() => {
-                        setSelectedImageUrl(affiche.imageUrl!);
-                        setImageModalOpen(true);
-                      }}
-                      draggable
-                      onDragStart={async (e) => {
-                        try {
-                          // Télécharger l'image pour le drag and drop
-                          const response = await fetch(affiche.imageUrl!);
-                          const blob = await response.blob();
-                          const file = new File([blob], `${affiche.ean}.jpg`, { type: 'image/jpeg' });
-                          
-                          // Utiliser DataTransfer pour le drag and drop de fichier
-                          const dataTransfer = e.dataTransfer;
-                          dataTransfer.effectAllowed = 'copy';
-                          dataTransfer.setData('text/plain', affiche.imageUrl!);
-                          dataTransfer.setData('text/uri-list', affiche.imageUrl!);
-                          
-                          // Ajouter le fichier pour le drag and drop
-                          if (dataTransfer.items) {
-                            dataTransfer.items.add(file);
-                          }
-                          
-                          // Créer une image de prévisualisation pour le drag
-                          const img = new Image();
-                          img.src = affiche.imageUrl!;
-                          img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            canvas.width = img.width;
-                            canvas.height = img.height;
-                            const ctx = canvas.getContext('2d');
-                            if (ctx) {
-                              ctx.drawImage(img, 0, 0);
-                              dataTransfer.setDragImage(canvas, img.width / 2, img.height / 2);
-                            }
-                          };
-                        } catch (err) {
-                          console.error('Erreur lors du drag:', err);
-                          // Fallback simple
-                          e.dataTransfer.setData('text/plain', affiche.imageUrl!);
-                        }
-                      }}
-                      title="Cliquer pour agrandir ou glisser-déposer vers votre logiciel"
-                    />
-                  ) : (
-                    <span className="text-gray-400 text-xs">-</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-900">{affiche.designation}</td>
-                <td className="px-4 py-3 text-sm text-gray-600">{affiche.weight || '-'}</td>
-                <td className="px-4 py-3 text-sm text-gray-600">{affiche.price || '-'}</td>
-                <td className="px-4 py-3 text-sm text-gray-600">{affiche.pricePerKg || '-'}</td>
-                <td className="px-4 py-3 text-center">
-                  <button
-                    onClick={() => {
-                      setAfficheToDelete(affiche);
-                      setDeleteModalOpen(true);
-                    }}
-                    className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                    title="Supprimer"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </td>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">EAN</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Photo</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Désignation</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Poids</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Prix</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Prix/kg</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredAffiches.map((affiche) => (
+                <tr
+                  key={affiche.id}
+                  className={`hover:bg-gray-50 transition-colors ${
+                    selectedAffiches.has(affiche.id!) ? 'bg-blue-50' : ''
+                  }`}
+                >
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={affiche.id ? selectedAffiches.has(affiche.id) : false}
+                      onChange={() => affiche.id && handleSelectAffiche(affiche.id)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-900 font-mono">{affiche.ean}</span>
+                      <button
+                        onClick={() => copyToClipboard(affiche.ean)}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        title="Copier l'EAN"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    {affiche.imageUrl ? (
+                      <img
+                        src={affiche.imageUrl}
+                        alt={affiche.designation}
+                        className="w-12 h-12 object-cover rounded cursor-move hover:opacity-80 transition-opacity border border-gray-200"
+                        onClick={() => {
+                          setSelectedImageUrl(affiche.imageUrl!);
+                          setImageModalOpen(true);
+                        }}
+                        draggable
+                        onDragStart={async (e) => {
+                          try {
+                            const response = await fetch(affiche.imageUrl!);
+                            const blob = await response.blob();
+                            const file = new File([blob], `${affiche.ean}.jpg`, { type: 'image/jpeg' });
+                            
+                            const dataTransfer = e.dataTransfer;
+                            dataTransfer.effectAllowed = 'copy';
+                            dataTransfer.setData('text/plain', affiche.imageUrl!);
+                            dataTransfer.setData('text/uri-list', affiche.imageUrl!);
+                            
+                            if (dataTransfer.items) {
+                              dataTransfer.items.add(file);
+                            }
+                            
+                            const img = new Image();
+                            img.src = affiche.imageUrl!;
+                            img.onload = () => {
+                              const canvas = document.createElement('canvas');
+                              canvas.width = img.width;
+                              canvas.height = img.height;
+                              const ctx = canvas.getContext('2d');
+                              if (ctx) {
+                                ctx.drawImage(img, 0, 0);
+                                dataTransfer.setDragImage(canvas, img.width / 2, img.height / 2);
+                              }
+                            };
+                          } catch (err) {
+                            console.error('Erreur lors du drag:', err);
+                            e.dataTransfer.setData('text/plain', affiche.imageUrl!);
+                          }
+                        }}
+                        title="Cliquer pour agrandir ou glisser-déposer"
+                      />
+                    ) : (
+                      <span className="text-gray-400 text-xs">-</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="text-sm text-gray-900">{affiche.designation}</div>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <span className="text-sm text-gray-600">{affiche.weight || '-'}</span>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <span className="text-sm text-gray-600">{affiche.price || '-'}</span>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <span className="text-sm text-gray-600">{affiche.pricePerKg || '-'}</span>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-center">
+                    <button
+                      onClick={() => {
+                        setAfficheToDelete(affiche);
+                        setDeleteModalOpen(true);
+                      }}
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                      title="Supprimer"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pagination and Results Info */}
+      <div className="border-t border-gray-200 bg-white px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            Affichage de <span className="font-medium">1</span> à <span className="font-medium">{filteredAffiches.length}</span> sur <span className="font-medium">{filteredAffiches.length}</span> résultats
+          </div>
+          {selectedAffiches.size > 0 && (
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-600">{selectedAffiches.size} sélectionné(s)</span>
+              <button
+                onClick={handleExportEANs}
+                className="px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
+              >
+                Exporter
+              </button>
+              <button
+                onClick={handleDeleteSelected}
+                className="px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100"
+              >
+                Supprimer
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {filteredAffiches.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          {searchTerm ? 'Aucun résultat' : 'Aucune affiche enregistrée'}
+        <div className="px-6 py-12">
+          <div className="text-center text-gray-500">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <p className="mt-2 text-sm text-gray-500">
+              {searchTerm ? 'Aucun résultat trouvé' : 'Aucune affiche enregistrée'}
+            </p>
+          </div>
         </div>
       )}
 
