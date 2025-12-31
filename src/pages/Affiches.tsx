@@ -18,6 +18,8 @@ const Affiches: React.FC = () => {
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>(''); // Format: 'YYYY-MM-DD' ou '' pour toutes
+  const [selectedAffiches, setSelectedAffiches] = useState<Set<string>>(new Set());
+  const [selectAll, setSelectAll] = useState(false);
 
   useEffect(() => {
     const q = query(collection(db, 'affiches'));
@@ -54,6 +56,67 @@ const Affiches: React.FC = () => {
       // Pas de modal, copie silencieuse
     } catch (err) {
       console.error('Erreur lors de la copie:', err);
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      // Désélectionner toutes les affiches filtrées
+      setSelectedAffiches(new Set());
+      setSelectAll(false);
+    } else {
+      // Sélectionner toutes les affiches filtrées
+      const allIds = new Set(filteredAffiches.map(a => a.id!).filter(Boolean));
+      setSelectedAffiches(allIds);
+      setSelectAll(true);
+    }
+  };
+
+  const handleSelectAffiche = (afficheId: string) => {
+    const newSelected = new Set(selectedAffiches);
+    if (newSelected.has(afficheId)) {
+      newSelected.delete(afficheId);
+    } else {
+      newSelected.add(afficheId);
+    }
+    setSelectedAffiches(newSelected);
+    // Mettre à jour selectAll si toutes les affiches filtrées sont sélectionnées
+    const allFilteredIds = filteredAffiches.map(a => a.id!).filter(Boolean);
+    setSelectAll(newSelected.size === allFilteredIds.length && allFilteredIds.length > 0);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedAffiches.size === 0) return;
+    
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedAffiches.size} affiche(s) ?`)) {
+      return;
+    }
+
+    try {
+      const deletePromises = Array.from(selectedAffiches).map(id => 
+        deleteDoc(doc(db, 'affiches', id))
+      );
+      await Promise.all(deletePromises);
+      setSelectedAffiches(new Set());
+      setSelectAll(false);
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      alert('Erreur lors de la suppression');
+    }
+  };
+
+  const handleExportEANs = async () => {
+    if (selectedAffiches.size === 0) return;
+
+    const selectedAffichesList = affiches.filter(a => a.id && selectedAffiches.has(a.id));
+    const eanList = selectedAffichesList.map(a => a.ean).join(',');
+    
+    try {
+      await navigator.clipboard.writeText(eanList);
+      // Copie silencieuse, pas de modal
+    } catch (err) {
+      console.error('Erreur lors de la copie:', err);
+      alert('Erreur lors de la copie');
     }
   };
 
@@ -115,6 +178,12 @@ const Affiches: React.FC = () => {
       affiches.map(a => new Date(a.createdAt).toISOString().split('T')[0])
     )
   ).sort((a, b) => b.localeCompare(a)); // Plus récentes en premier
+
+  // Synchroniser selectAll avec la sélection actuelle
+  useEffect(() => {
+    const allFilteredIds = filteredAffiches.map(a => a.id!).filter(Boolean);
+    setSelectAll(selectedAffiches.size === allFilteredIds.length && allFilteredIds.length > 0);
+  }, [selectedAffiches, filteredAffiches]);
 
   if (loading) {
     return (
@@ -180,10 +249,42 @@ const Affiches: React.FC = () => {
         </div>
       </div>
 
+      {/* Barre d'actions pour les affiches sélectionnées */}
+      {selectedAffiches.size > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+          <span className="text-sm font-medium text-blue-900">
+            {selectedAffiches.size} affiche(s) sélectionnée(s)
+          </span>
+          <div className="flex space-x-2">
+            <button
+              onClick={handleExportEANs}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+            >
+              Exporter la liste
+            </button>
+            <button
+              onClick={handleDeleteSelected}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+            >
+              Supprimer les sélectionnés
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full border-collapse bg-white">
           <thead>
             <tr className="border-b-2 border-gray-300">
+              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 w-12">
+                <input
+                  type="checkbox"
+                  checked={selectAll}
+                  onChange={handleSelectAll}
+                  className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black"
+                  title="Sélectionner tout"
+                />
+              </th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">EAN</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Photo</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Désignation</th>
@@ -197,8 +298,18 @@ const Affiches: React.FC = () => {
             {filteredAffiches.map((affiche) => (
               <tr
                 key={affiche.id}
-                className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                className={`border-b border-gray-200 hover:bg-gray-50 transition-colors ${
+                  selectedAffiches.has(affiche.id!) ? 'bg-blue-50' : ''
+                }`}
               >
+                <td className="px-4 py-3 text-center">
+                  <input
+                    type="checkbox"
+                    checked={affiche.id ? selectedAffiches.has(affiche.id) : false}
+                    onChange={() => affiche.id && handleSelectAffiche(affiche.id)}
+                    className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black"
+                  />
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center space-x-2">
                     <span className="font-mono text-sm">{affiche.ean}</span>

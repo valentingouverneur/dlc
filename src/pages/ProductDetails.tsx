@@ -299,6 +299,26 @@ const ProductDetails: React.FC = () => {
                   <p className="text-gray-600 mt-2">
                     Date de péremption : {new Date(product.expiryDate).toLocaleDateString('fr-FR')}
                   </p>
+                  {product.barcode && (
+                    <div className="flex items-center space-x-2 mt-2">
+                      <p className="text-gray-600">
+                        EAN : <span className="font-mono text-sm">{product.barcode}</span>
+                      </p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(product.barcode);
+                          } catch (err) {
+                            console.error('Erreur lors de la copie:', err);
+                          }
+                        }}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                        title="Copier l'EAN"
+                      >
+                        📋
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 

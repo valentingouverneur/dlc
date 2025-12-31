@@ -122,10 +122,10 @@ export class NotificationService {
     return new Date(date);
   }
 
-  private checkExpiringProducts(products: Product[]) {
+  private checkExpiringProducts(products: Product[]): boolean {
     if (!products || products.length === 0) {
       this.log('Aucun produit à vérifier');
-      return;
+      return false;
     }
 
     const today = new Date();
@@ -170,19 +170,17 @@ export class NotificationService {
           silent: false
         }
       );
+      return true;
     } else {
       this.log('Aucun produit n\'expire dans les prochains jours');
+      return false;
     }
   }
 
   updateProducts(products: Product[]) {
     this.products = products;
     this.log(`Produits mis à jour: ${products.length} produits`);
-    
-    // Si les notifications sont actives, vérifier immédiatement
-    if (this.hasPermission && this.checkInterval) {
-      this.checkExpiringProducts(products);
-    }
+    // Ne plus vérifier immédiatement, seulement à 6h
   }
 
   startDailyCheck(products: Product[]) {
@@ -195,9 +193,6 @@ export class NotificationService {
       this.log('Aucun produit disponible, attente des données...');
       return;
     }
-    
-    // Vérification immédiate
-    this.checkExpiringProducts(products);
 
     // Arrêter l'intervalle précédent s'il existe
     if (this.checkInterval) {
@@ -205,8 +200,8 @@ export class NotificationService {
       this.log('Arrêt de l\'ancien intervalle de vérification');
     }
 
-    // Vérifier toutes les 30 secondes en mode debug, sinon toutes les heures
-    const interval = this.isDebug ? 30000 : 3600000;
+    // Vérifier toutes les heures si on est à 6h du matin
+    const interval = 3600000; // 1 heure en millisecondes
     
     this.checkInterval = setInterval(() => {
       // Utiliser les produits stockés ou ceux passés en paramètre
@@ -220,16 +215,29 @@ export class NotificationService {
       const now = new Date();
       const hour = now.getHours();
       const minutes = now.getMinutes();
-      const day = now.getDay();
-
-      // En mode debug, vérifier toutes les 30 secondes
-      // En production, vérifier à 6h00 sauf le dimanche
-      if (this.isDebug || (hour === 6 && minutes === 0 && day !== 0)) {
-        this.checkExpiringProducts(productsToCheck);
+      const todayStr = now.toISOString().split('T')[0];
+      
+      // Vérifier si on est à 6h du matin (entre 6h00 et 6h01)
+      if (hour === 6 && minutes === 0) {
+        // Vérifier si une notification a déjà été envoyée aujourd'hui
+        const lastNotificationDate = localStorage.getItem('lastNotificationDate');
+        
+        if (lastNotificationDate !== todayStr) {
+          this.log(`Vérification des produits expirants à 6h du matin (${todayStr})`);
+          const notificationSent = this.checkExpiringProducts(productsToCheck);
+          
+          if (notificationSent) {
+            // Enregistrer la date de la notification
+            localStorage.setItem('lastNotificationDate', todayStr);
+            this.log(`Notification envoyée pour le ${todayStr}`);
+          }
+        } else {
+          this.log(`Notification déjà envoyée aujourd'hui (${todayStr})`);
+        }
       }
     }, interval);
 
-    this.log(`Nouvel intervalle de vérification configuré: ${interval/1000} secondes`);
+    this.log(`Vérification horaire configurée (notification uniquement à 6h du matin)`);
   }
 
   stopDailyCheck() {
