@@ -84,18 +84,24 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
           <span className="text-xs font-medium">Search</span>
         </Link>
 
-        {/* Scanner - Bouton central avec code-barres */}
+        {/* Scanner - Bouton central avec code-barres noir et blanc */}
         <button
           onClick={onScannerClick}
-          className="flex items-center justify-center w-16 h-16 -mt-6 bg-purple-600 rounded-full shadow-lg hover:bg-purple-700 transition-colors z-10"
+          className="flex items-center justify-center w-16 h-16 -mt-6 bg-black rounded-full shadow-lg hover:bg-gray-800 transition-colors z-10"
         >
-          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-            {/* Rectangle avec coins */}
-            <path d="M6 6h12v12H6z" strokeLinecap="round" strokeLinejoin="round" />
-            {/* Coins */}
-            <path d="M6 6l4 0M6 6l0 4M18 6l-4 0M18 6l0 4M6 18l4 0M6 18l0 -4M18 18l-4 0M18 18l0 -4" strokeLinecap="round" />
-            {/* Lignes verticales du code-barres */}
-            <path d="M8 8v8M10 9v6M12 8v8M14 9v6M16 8v8" strokeLinecap="round" />
+          <svg className="w-9 h-9" viewBox="0 0 24 24" fill="none">
+            {/* Cercle noir (fond) */}
+            <circle cx="12" cy="12" r="11" fill="black" />
+            {/* Code-barres blanc à l'intérieur */}
+            <g fill="white">
+              {/* Lignes verticales du code-barres */}
+              <rect x="7" y="6" width="1.5" height="12" />
+              <rect x="9.5" y="7" width="2" height="10" />
+              <rect x="12.5" y="6" width="1" height="12" />
+              <rect x="14.5" y="6" width="2.5" height="12" />
+              <rect x="18" y="7" width="1" height="10" />
+              <rect x="20" y="6" width="1.5" height="12" />
+            </g>
           </svg>
         </button>
 
