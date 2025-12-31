@@ -130,7 +130,7 @@ const ProductDetails: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
+      <div className="flex justify-center items-center min-h-[60vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
       </div>
     );
@@ -138,7 +138,7 @@ const ProductDetails: React.FC = () => {
 
   if (error || !product) {
     return (
-      <div className="min-h-screen bg-gray-100 p-4">
+      <div className="bg-gray-100 p-4">
         <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-6">
           <div className="text-red-600">{error || 'Produit non trouvé'}</div>
           <button
@@ -153,7 +153,7 @@ const ProductDetails: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
+    <div className="bg-gray-100 p-4">
       <div className="max-w-2xl mx-auto bg-white rounded-lg shadow">
         <div className="p-6">
           <div className="flex justify-between items-start mb-6">
