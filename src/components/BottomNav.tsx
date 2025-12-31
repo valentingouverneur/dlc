@@ -80,9 +80,15 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
             isActive('/products') ? '!text-black' : '!text-gray-600'
           }`}
         >
-          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          {isActive('/products') ? (
+            <svg className="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M10.5 3.75a6.75 6.75 0 100 13.5 6.75 6.75 0 000-13.5zM2.25 10.5a8.25 8.25 0 1114.59 5.28l4.69 4.69a.75.75 0 11-1.06 1.06l-4.69-4.69A8.25 8.25 0 012.25 10.5z" />
+            </svg>
+          ) : (
+            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          )}
           <span className="text-xs font-medium">Search</span>
         </Link>
 
@@ -101,9 +107,15 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
             isActive('/affiches') ? '!text-black' : '!text-gray-600'
           }`}
         >
-          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-          </svg>
+          {isActive('/affiches') ? (
+            <svg className="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M5.25 3h13.5A2.25 2.25 0 0121 5.25v13.5A2.25 2.25 0 0118.75 21H5.25A2.25 2.25 0 013 18.75V5.25A2.25 2.25 0 015.25 3zm1.5 4.5v9h10.5v-9H6.75z" />
+            </svg>
+          ) : (
+            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+          )}
           <span className="text-xs font-medium">Affiches</span>
         </Link>
 
