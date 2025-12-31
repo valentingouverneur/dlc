@@ -50,25 +50,25 @@ const Products: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Tous les produits</h1>
+    <div className="space-y-6 w-full max-w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Tous les produits</h1>
         <input
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Rechercher un produit..."
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+          className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
         />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
         {filteredProducts.map((product) => (
           <div
             key={product.id}
-            className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+            className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow w-full max-w-full overflow-hidden"
           >
-            <div className="flex items-center justify-between">
-              <Link to={`/product/${product.id}`} className="flex items-center space-x-4 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <Link to={`/product/${product.id}`} className="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
                 {product.imageUrl ? (
                   <img
                     src={product.imageUrl}
@@ -82,9 +82,9 @@ const Products: React.FC = () => {
                     </svg>
                   </div>
                 )}
-                <div className="flex-1">
-                  <h4 className="font-medium text-gray-900">{product.name}</h4>
-                  <p className="text-sm text-gray-500">{product.brand}</p>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-gray-900 truncate">{product.name}</h4>
+                  <p className="text-sm text-gray-500 truncate">{product.brand}</p>
                   <p className="text-sm text-gray-500 mt-1">
                     Péremption : {new Date(product.expiryDate).toLocaleDateString('fr-FR')}
                   </p>
@@ -95,7 +95,7 @@ const Products: React.FC = () => {
                   setProductToDelete(product);
                   setDeleteModalOpen(true);
                 }}
-                className="ml-4 p-2 text-gray-400 hover:text-red-500 transition-colors"
+                className="flex-shrink-0 p-2 text-gray-400 hover:text-red-500 transition-colors"
                 title="Supprimer le produit"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

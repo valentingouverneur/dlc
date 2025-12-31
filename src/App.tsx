@@ -22,13 +22,13 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 overflow-x-hidden">
         {/* Sidebar pour desktop */}
         <Sidebar />
         
         {/* Contenu principal avec marge pour le sidebar */}
-        <div className="md:ml-16 pb-20 md:pb-0">
-          <div className="container mx-auto px-4 py-8">
+        <div className="md:ml-16 pb-20 md:pb-0 w-full max-w-full overflow-x-hidden">
+          <div className="container mx-auto px-4 py-8 max-w-full">
             <Routes>
               <Route path="/" element={<Calendar key={refreshKey} />} />
               <Route path="/products" element={<Products key={refreshKey} />} />
