@@ -28,7 +28,7 @@ function App() {
         
         {/* Contenu principal avec marge pour le sidebar */}
         <div className="md:ml-16 pb-20 md:pb-0 w-full max-w-full overflow-x-hidden">
-          <div className="container mx-auto px-4 py-8 max-w-full">
+          <div className="w-full px-2 sm:px-4 py-8 max-w-full">
             <Routes>
               <Route path="/" element={<Calendar key={refreshKey} />} />
               <Route path="/products" element={<Products key={refreshKey} />} />

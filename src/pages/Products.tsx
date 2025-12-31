@@ -50,15 +50,15 @@ const Products: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 w-full max-w-full overflow-x-hidden">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Tous les produits</h1>
+    <div className="space-y-6 w-full max-w-full">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex-shrink-0">Tous les produits</h1>
         <input
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Rechercher un produit..."
-          className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+          className="w-full sm:w-auto min-w-0 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
         />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
