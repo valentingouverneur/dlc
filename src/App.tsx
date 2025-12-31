@@ -39,13 +39,6 @@ function App() {
         </div>
 
         <MobileBlurEffect />
-        
-        {/* Bouton scanner flottant uniquement sur desktop */}
-        <div className="hidden md:block">
-          {!isScannerOpen && (
-            <FloatingScannerButton onClick={() => setIsScannerOpen(true)} />
-          )}
-        </div>
 
         {/* Bottom nav pour mobile */}
         <BottomNav onScannerClick={() => setIsScannerOpen(true)} />
