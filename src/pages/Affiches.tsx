@@ -196,35 +196,35 @@ const Affiches: React.FC = () => {
   return (
     <div className="bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4">
+      <div className="border-b border-gray-200 bg-white px-2 sm:px-6 py-4">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-semibold text-gray-900">Affiches</h1>
+          <h1 className="text-xl sm:text-3xl font-semibold text-gray-900">Affiches</h1>
           <div className="flex items-center space-x-3">
             <button
               onClick={handleExportEANs}
               disabled={selectedAffiches.size === 0}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              className="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1 sm:space-x-2"
             >
-              <span>EXPORT</span>
+              <span className="hidden sm:inline">EXPORT</span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
             <button
               onClick={() => setIsScannerOpen(true)}
-              className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 flex items-center space-x-2"
+              className="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 flex items-center space-x-1 sm:space-x-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              <span>SCANNER</span>
+              <span className="hidden sm:inline">SCANNER</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Search and Filters */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4">
+      <div className="border-b border-gray-200 bg-white px-2 sm:px-6 py-4">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1 relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -276,7 +276,7 @@ const Affiches: React.FC = () => {
       </div>
 
       {/* Summary */}
-      <div className="border-b border-gray-200 bg-white px-6 py-3">
+      <div className="border-b border-gray-200 bg-white px-2 sm:px-6 py-3">
         <div className="flex items-center space-x-6">
           <span className="text-sm font-medium text-green-600 border-b-2 border-green-600 pb-1">
             TOUTES {affiches.length}
@@ -288,12 +288,12 @@ const Affiches: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div className="px-6 py-4">
-        <div className="overflow-x-auto bg-white rounded-lg border border-gray-200">
+      <div className="px-0 sm:px-6 py-2 sm:py-4">
+        <div className="overflow-x-auto bg-white sm:rounded-lg border-0 sm:border border-gray-200">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-12">
+                <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-12">
                   <input
                     type="checkbox"
                     checked={selectAll}
@@ -302,13 +302,13 @@ const Affiches: React.FC = () => {
                     title="Sélectionner tout"
                   />
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">EAN</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Photo</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Désignation</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Poids</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Prix</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Prix/kg</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">EAN</th>
+                <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Photo</th>
+                <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Désignation</th>
+                <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Poids</th>
+                <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Prix</th>
+                <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Prix/kg</th>
+                <th className="px-2 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -319,7 +319,7 @@ const Affiches: React.FC = () => {
                     selectedAffiches.has(affiche.id!) ? 'bg-blue-50' : ''
                   }`}
                 >
-                  <td className="px-4 py-4 whitespace-nowrap">
+                  <td className="px-2 sm:px-4 py-4 whitespace-nowrap">
                     <input
                       type="checkbox"
                       checked={affiche.id ? selectedAffiches.has(affiche.id) : false}
@@ -327,9 +327,9 @@ const Affiches: React.FC = () => {
                       className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     />
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
+                  <td className="px-2 sm:px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-gray-900 font-mono">{affiche.ean}</span>
+                      <span className="text-xs sm:text-sm font-medium text-gray-900 font-mono">{affiche.ean}</span>
                       <button
                         onClick={() => copyToClipboard(affiche.ean)}
                         className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -341,12 +341,12 @@ const Affiches: React.FC = () => {
                       </button>
                     </div>
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
+                  <td className="px-2 sm:px-4 py-4 whitespace-nowrap">
                     {affiche.imageUrl ? (
                       <img
                         src={affiche.imageUrl}
                         alt={affiche.designation}
-                        className="w-12 h-12 object-cover rounded cursor-move hover:opacity-80 transition-opacity border border-gray-200"
+                        className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded cursor-move hover:opacity-80 transition-opacity border border-gray-200"
                         onClick={() => {
                           setSelectedImageUrl(affiche.imageUrl!);
                           setImageModalOpen(true);
@@ -390,19 +390,19 @@ const Affiches: React.FC = () => {
                       <span className="text-gray-400 text-xs">-</span>
                     )}
                   </td>
-                  <td className="px-4 py-4">
-                    <div className="text-sm text-gray-900">{affiche.designation}</div>
+                  <td className="px-2 sm:px-4 py-4">
+                    <div className="text-xs sm:text-sm text-gray-900">{affiche.designation}</div>
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <span className="text-sm text-gray-600">{affiche.weight || '-'}</span>
+                  <td className="px-2 sm:px-4 py-4 whitespace-nowrap">
+                    <span className="text-xs sm:text-sm text-gray-600">{affiche.weight || '-'}</span>
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <span className="text-sm text-gray-600">{affiche.price || '-'}</span>
+                  <td className="px-2 sm:px-4 py-4 whitespace-nowrap">
+                    <span className="text-xs sm:text-sm text-gray-600">{affiche.price || '-'}</span>
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <span className="text-sm text-gray-600">{affiche.pricePerKg || '-'}</span>
+                  <td className="px-2 sm:px-4 py-4 whitespace-nowrap">
+                    <span className="text-xs sm:text-sm text-gray-600">{affiche.pricePerKg || '-'}</span>
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-center">
+                  <td className="px-2 sm:px-4 py-4 whitespace-nowrap text-center">
                     <button
                       onClick={() => {
                         setAfficheToDelete(affiche);
@@ -424,7 +424,7 @@ const Affiches: React.FC = () => {
       </div>
 
       {/* Pagination and Results Info */}
-      <div className="border-t border-gray-200 bg-white px-6 py-4">
+      <div className="border-t border-gray-200 bg-white px-2 sm:px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-600">
             Affichage de <span className="font-medium">1</span> à <span className="font-medium">{filteredAffiches.length}</span> sur <span className="font-medium">{filteredAffiches.length}</span> résultats
@@ -450,7 +450,7 @@ const Affiches: React.FC = () => {
       </div>
 
       {filteredAffiches.length === 0 && (
-        <div className="px-6 py-12">
+        <div className="px-2 sm:px-6 py-12">
           <div className="text-center text-gray-500">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

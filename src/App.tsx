@@ -5,7 +5,8 @@ import Products from './pages/Products';
 import Scanner from './pages/Scanner';
 import ProductDetails from './pages/ProductDetails';
 import Affiches from './pages/Affiches';
-import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
+import BottomNav from './components/BottomNav';
 import Modal from './components/Modal';
 import FloatingScannerButton from './components/FloatingScannerButton';
 import MobileBlurEffect from './components/MobileBlurEffect';
@@ -22,19 +23,32 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="container mx-auto px-4 py-8">
-          <Routes>
-            <Route path="/" element={<Calendar key={refreshKey} />} />
-            <Route path="/products" element={<Products key={refreshKey} />} />
-            <Route path="/product/:id" element={<ProductDetails />} />
-            <Route path="/affiches" element={<Affiches key={refreshKey} />} />
-          </Routes>
+        {/* Sidebar pour desktop */}
+        <Sidebar />
+        
+        {/* Contenu principal avec marge pour le sidebar */}
+        <div className="md:ml-16 pb-20 md:pb-0">
+          <div className="container mx-auto px-4 py-8">
+            <Routes>
+              <Route path="/" element={<Calendar key={refreshKey} />} />
+              <Route path="/products" element={<Products key={refreshKey} />} />
+              <Route path="/product/:id" element={<ProductDetails />} />
+              <Route path="/affiches" element={<Affiches key={refreshKey} />} />
+            </Routes>
+          </div>
         </div>
+
         <MobileBlurEffect />
-        {!isScannerOpen && (
-          <FloatingScannerButton onClick={() => setIsScannerOpen(true)} />
-        )}
+        
+        {/* Bouton scanner flottant uniquement sur desktop */}
+        <div className="hidden md:block">
+          {!isScannerOpen && (
+            <FloatingScannerButton onClick={() => setIsScannerOpen(true)} />
+          )}
+        </div>
+
+        {/* Bottom nav pour mobile */}
+        <BottomNav onScannerClick={() => setIsScannerOpen(true)} />
 
         <Modal
           isOpen={isScannerOpen}
