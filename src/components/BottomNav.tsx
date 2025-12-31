@@ -63,8 +63,8 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
         {/* DLC - Page d'accueil */}
         <Link
           to="/"
-          className={`flex flex-col items-center justify-center flex-1 h-full ${
-            isActive('/') ? 'text-black' : 'text-gray-600'
+          className={`flex flex-col items-center justify-center flex-1 h-full no-underline ${
+            isActive('/') ? '!text-black' : '!text-gray-600'
           }`}
         >
           <svg className="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20">
@@ -76,8 +76,8 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
         {/* Search - Liste des produits */}
         <Link
           to="/products"
-          className={`flex flex-col items-center justify-center flex-1 h-full ${
-            isActive('/products') ? 'text-black' : 'text-gray-600'
+          className={`flex flex-col items-center justify-center flex-1 h-full no-underline ${
+            isActive('/products') ? '!text-black' : '!text-gray-600'
           }`}
         >
           <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -97,8 +97,8 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
         {/* Affiches */}
         <Link
           to="/affiches"
-          className={`flex flex-col items-center justify-center flex-1 h-full ${
-            isActive('/affiches') ? 'text-black' : 'text-gray-600'
+          className={`flex flex-col items-center justify-center flex-1 h-full no-underline ${
+            isActive('/affiches') ? '!text-black' : '!text-gray-600'
           }`}
         >
           <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -110,7 +110,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
         {/* Notifications - Icônes en contour selon l'état */}
         <button
           onClick={handleNotificationToggle}
-          className="flex flex-col items-center justify-center flex-1 h-full text-gray-600"
+          className="flex flex-col items-center justify-center flex-1 h-full !text-gray-600"
         >
           {notificationsEnabled ? (
             <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
