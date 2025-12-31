@@ -84,18 +84,18 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
           <span className="text-xs font-medium">Search</span>
         </Link>
 
-        {/* Scanner - Bouton central */}
+        {/* Scanner - Bouton central avec code-barres */}
         <button
           onClick={onScannerClick}
-          className="flex items-center justify-center w-14 h-14 -mt-6 bg-purple-600 rounded-full shadow-lg hover:bg-purple-700 transition-colors z-10"
+          className="flex items-center justify-center w-16 h-16 -mt-6 bg-purple-600 rounded-full shadow-lg hover:bg-purple-700 transition-colors z-10"
         >
-          <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
             {/* Rectangle avec coins */}
             <path d="M6 6h12v12H6z" strokeLinecap="round" strokeLinejoin="round" />
             {/* Coins */}
             <path d="M6 6l4 0M6 6l0 4M18 6l-4 0M18 6l0 4M6 18l4 0M6 18l0 -4M18 18l-4 0M18 18l0 -4" strokeLinecap="round" />
-            {/* Ligne horizontale au milieu */}
-            <path d="M8 12h8" strokeLinecap="round" />
+            {/* Lignes verticales du code-barres */}
+            <path d="M8 8v8M10 9v6M12 8v8M14 9v6M16 8v8" strokeLinecap="round" />
           </svg>
         </button>
 
@@ -107,7 +107,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
           }`}
         >
           <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
           </svg>
           <span className="text-xs font-medium">Affiches</span>
         </Link>
