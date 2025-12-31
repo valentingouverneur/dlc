@@ -21,6 +21,14 @@
   }
 }
 
+/* Force layout en colonne pour Products page sur mobile */
+@media (max-width: 640px) {
+  .products-header {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+}
+
 :root {
   font-family: 'Poppins', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

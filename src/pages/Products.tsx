@@ -51,7 +51,7 @@ const Products: React.FC = () => {
 
   return (
     <div className="space-y-6 w-full max-w-full">
-      <div className="flex flex-col gap-4 w-full">
+      <div className="products-header flex flex-col gap-4 w-full">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900 w-full">Tous les produits</h1>
         <input
           type="text"
