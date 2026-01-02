@@ -39,19 +39,56 @@ export class ImageSearchService {
         imgType: 'photo', // Uniquement des photos
       };
 
-      // Essayer d'abord avec juste l'EAN
+      // Essayer plusieurs stratégies de recherche
+      let response: any = null;
+      
+      // Stratégie 1: EAN seul
       params.q = ean;
-      console.log('📡 Requête Google Custom Search (EAN seul):', { query: params.q, url, params: { ...params, key: '***' } });
-      
-      let response = await axios.get(url, { params });
-      
-      // Si aucun résultat, essayer avec le nom du produit + EAN
-      if (!response.data.items || response.data.items.length === 0) {
-        if (productName) {
-          console.log('⚠️ Aucun résultat avec l\'EAN seul, essai avec nom du produit + EAN...');
-          params.q = `${productName} ${ean}`;
-          response = await axios.get(url, { params });
+      console.log('📡 Requête Google Custom Search (EAN seul):', { query: params.q });
+      try {
+        response = await axios.get(url, { params });
+        if (response.data.items && response.data.items.length > 0) {
+          console.log(`✅ ${response.data.items.length} résultats avec EAN seul`);
         }
+      } catch (err: any) {
+        console.warn('⚠️ Erreur avec EAN seul:', err.response?.status, err.message);
+      }
+      
+      // Stratégie 2: Nom du produit + EAN (si pas de résultats ou erreur)
+      if (!response || !response.data.items || response.data.items.length === 0) {
+        if (productName) {
+          console.log('📡 Essai avec nom du produit + EAN...');
+          params.q = `${productName} ${ean}`;
+          try {
+            response = await axios.get(url, { params });
+            if (response.data.items && response.data.items.length > 0) {
+              console.log(`✅ ${response.data.items.length} résultats avec nom + EAN`);
+            }
+          } catch (err: any) {
+            console.warn('⚠️ Erreur avec nom + EAN:', err.response?.status, err.message);
+          }
+        }
+      }
+      
+      // Stratégie 3: Juste le nom du produit (si toujours pas de résultats)
+      if (!response || !response.data.items || response.data.items.length === 0) {
+        if (productName) {
+          console.log('📡 Essai avec nom du produit seul...');
+          params.q = productName;
+          try {
+            response = await axios.get(url, { params });
+            if (response.data.items && response.data.items.length > 0) {
+              console.log(`✅ ${response.data.items.length} résultats avec nom seul`);
+            }
+          } catch (err: any) {
+            console.warn('⚠️ Erreur avec nom seul:', err.response?.status, err.message);
+          }
+        }
+      }
+      
+      if (!response) {
+        console.error('❌ Aucune réponse de Google Custom Search');
+        return null;
       }
 
       
@@ -68,20 +105,18 @@ export class ImageSearchService {
         })));
         // Domaines privilégiés : grandes enseignes et sites professionnels
         const preferredDomains = [
-          'leclerc.fr', 'carrefour.fr', 'auchan.fr', 'intermarche.fr', 'monoprix.fr', 'casino.fr',
           'leclerc', 'carrefour', 'auchan', 'intermarche', 'monoprix', 'casino',
           'drive', 'ecommerce', 'supermarche', 'hypermarche',
-          'manufacturer', 'brand', 'official', 'produit', 'packshot'
+          'manufacturer', 'brand', 'official'
         ];
         
         // Domaines à éviter : sites de photos utilisateurs
         const excludedDomains = [
           'openfoodfacts', 'flickr', 'pinterest', 'instagram', 'facebook',
-          'tumblr', 'imgur', 'reddit', 'user', 'community'
+          'tumblr', 'imgur', 'reddit'
         ];
         
         // Chercher d'abord une image d'une grande enseigne ou site professionnel
-        // Vérifier aussi que l'EAN est présent dans le titre ou la description
         for (const item of response.data.items) {
           try {
             const domain = new URL(item.link).hostname.toLowerCase();
@@ -91,17 +126,10 @@ export class ImageSearchService {
               continue;
             }
             
-            // Vérifier que l'EAN est présent dans le titre ou la description
-            const titleLower = (item.title || '').toLowerCase();
-            const snippetLower = (item.snippet || '').toLowerCase();
-            const hasEAN = titleLower.includes(ean) || snippetLower.includes(ean);
-            
-            // Prioriser les domaines préférés avec EAN dans le titre/description
+            // Prioriser les domaines préférés
             if (preferredDomains.some(pref => domain.includes(pref))) {
-              if (hasEAN) {
-                console.log('Packshot trouvé depuis site professionnel (EAN confirmé):', item.link);
-                return item.link;
-              }
+              console.log('✅ Packshot trouvé depuis site professionnel:', item.link, '| Domaine:', domain);
+              return item.link;
             }
           } catch (e) {
             // Ignorer les URLs invalides
@@ -109,50 +137,12 @@ export class ImageSearchService {
           }
         }
         
-        // Si pas trouvé dans les domaines préférés, chercher une image avec EAN confirmé
-        for (const item of response.data.items) {
-          try {
-            const domain = new URL(item.link).hostname.toLowerCase();
-            if (excludedDomains.some(excluded => domain.includes(excluded))) {
-              continue;
-            }
-            
-            const titleLower = (item.title || '').toLowerCase();
-            const snippetLower = (item.snippet || '').toLowerCase();
-            const hasEAN = titleLower.includes(ean) || snippetLower.includes(ean);
-            
-            if (hasEAN) {
-              console.log('Image Google trouvée (EAN confirmé):', item.link);
-              return item.link;
-            }
-          } catch (e) {
-            continue;
-          }
-        }
-        
-        // Si pas trouvé avec EAN confirmé, prendre la première des domaines préférés
-        for (const item of response.data.items) {
-          try {
-            const domain = new URL(item.link).hostname.toLowerCase();
-            if (excludedDomains.some(excluded => domain.includes(excluded))) {
-              continue;
-            }
-            
-            if (preferredDomains.some(pref => domain.includes(pref))) {
-              console.log('Packshot trouvé depuis site professionnel (sans vérification EAN):', item.link);
-              return item.link;
-            }
-          } catch (e) {
-            continue;
-          }
-        }
-        
-        // Dernier recours : première image qui n'est pas exclue
+        // Si pas trouvé dans les domaines préférés, prendre la première image non exclue
         for (const item of response.data.items) {
           try {
             const domain = new URL(item.link).hostname.toLowerCase();
             if (!excludedDomains.some(excluded => domain.includes(excluded))) {
-              console.log('Image Google trouvée (fallback):', item.link);
+              console.log('✅ Image Google trouvée (fallback):', item.link, '| Domaine:', domain);
               return item.link;
             }
           } catch (e) {
@@ -160,9 +150,9 @@ export class ImageSearchService {
           }
         }
         
-        // Dernier recours : première image disponible
+        // Dernier recours : première image disponible (même si domaine exclu)
         const firstImage = response.data.items[0];
-        console.log('Image Google trouvée (fallback):', firstImage.link);
+        console.log('✅ Image Google trouvée (dernier recours):', firstImage.link);
         return firstImage.link;
       }
       
