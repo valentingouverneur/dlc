@@ -33,10 +33,8 @@ export class ImageSearchService {
         key: this.GOOGLE_API_KEY,
         cx: this.GOOGLE_CSE_ID,
         searchType: 'image',
-        num: 20, // Augmenter pour avoir plus d'options de filtrage
+        num: 10, // Limite max pour les images
         safe: 'active',
-        imgSize: 'large', // Prioriser les grandes images
-        imgType: 'photo', // Uniquement des photos
       };
 
       // Essayer plusieurs stratégies de recherche
@@ -161,12 +159,22 @@ export class ImageSearchService {
       return null;
     } catch (err: any) {
       console.error('❌ Erreur Google Images:', err);
-      console.error('Détails:', {
+      const errorDetails = {
         message: err.message,
         response: err.response?.data,
         status: err.response?.status,
-        statusText: err.response?.statusText
-      });
+        statusText: err.response?.statusText,
+        requestUrl: err.config?.url,
+        requestParams: err.config?.params ? { ...err.config.params, key: '***', cx: '***' } : null
+      };
+      console.error('Détails complets:', errorDetails);
+      
+      // Si erreur 400, c'est probablement un problème de paramètres
+      if (err.response?.status === 400) {
+        console.error('❌ Erreur 400: Paramètres de requête invalides. Vérifiez la configuration du CSE.');
+        console.error('Réponse API:', JSON.stringify(err.response?.data, null, 2));
+      }
+      
       return null;
     }
   }
