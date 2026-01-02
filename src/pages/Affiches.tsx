@@ -194,9 +194,9 @@ const Affiches: React.FC = () => {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className="bg-gray-50 min-h-screen w-full max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-2 sm:px-6 py-4">
+      <div className="border-b border-gray-200 bg-white px-2 sm:px-6 py-4 w-full">
         <div className="flex justify-between items-center">
           <h1 className="text-xl sm:text-3xl font-semibold text-gray-900">Affiches</h1>
           <div className="flex items-center space-x-3">
@@ -288,9 +288,9 @@ const Affiches: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div className="px-0 sm:px-6 py-2 sm:py-4">
-        <div className="overflow-x-auto bg-white sm:rounded-lg border-0 sm:border border-gray-200">
-          <table className="w-full">
+      <div className="px-0 sm:px-6 py-2 sm:py-4 w-full max-w-full">
+        <div className="overflow-x-auto bg-white sm:rounded-lg border-0 sm:border border-gray-200 w-full">
+          <table className="w-full min-w-max">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-12">
