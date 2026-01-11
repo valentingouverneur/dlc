@@ -5,6 +5,7 @@ import Products from './pages/Products';
 import Scanner from './pages/Scanner';
 import ProductDetails from './pages/ProductDetails';
 import Affiches from './pages/Affiches';
+import Promos from './pages/Promos';
 import TestDashboard from './pages/TestDashboard';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
@@ -35,6 +36,7 @@ function App() {
               <Route path="/products" element={<Products key={refreshKey} />} />
               <Route path="/product/:id" element={<ProductDetails />} />
               <Route path="/affiches" element={<Affiches key={refreshKey} />} />
+              <Route path="/promos" element={<Promos />} />
               <Route path="/test" element={<TestDashboard />} />
             </Routes>
           </div>
