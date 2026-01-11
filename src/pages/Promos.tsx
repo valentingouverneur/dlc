@@ -14,8 +14,8 @@ const Promos: React.FC = () => {
   const [promos, setPromos] = useState<Promo[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [viewMode, setViewMode] = useState<'current' | 'upcoming' | 'history'>('current');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [viewMode, setViewMode] = useState<'current' | 'upcoming' | 'history' | 'all'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
 
   useEffect(() => {
@@ -29,7 +29,12 @@ const Promos: React.FC = () => {
         id: doc.id,
         ...doc.data()
       })) as Promo[];
+      console.log('📊 Promos chargées:', promosData.length);
+      console.log('📊 Exemple de promo:', promosData[0]);
       setPromos(promosData);
+      setLoading(false);
+    }, (error) => {
+      console.error('❌ Erreur lors du chargement des promos:', error);
       setLoading(false);
     });
 
@@ -64,6 +69,7 @@ const Promos: React.FC = () => {
         return fin < today;
       });
     }
+    // 'all' mode : pas de filtre par date
 
     // Filtre par recherche
     if (searchTerm) {
@@ -194,6 +200,13 @@ const Promos: React.FC = () => {
           {/* Tabs pour les modes de vue */}
           <div className="flex flex-wrap gap-2">
             <Button
+              variant={viewMode === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('all')}
+            >
+              Toutes
+            </Button>
+            <Button
               variant={viewMode === 'current' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setViewMode('current')}
@@ -245,24 +258,40 @@ const Promos: React.FC = () => {
 
             <div>
               <label className="text-sm font-medium mb-2 block">Date</label>
-              <Button
-                variant="outline"
-                className="w-full justify-start text-left font-normal"
-                onClick={() => setSelectedDate(undefined)}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {selectedDate ? selectedDate.toLocaleDateString('fr-FR') : "Sélectionner une date"}
-              </Button>
-              {selectedDate && (
-                <div className="mt-2">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    className="rounded-md border"
-                  />
-                </div>
-              )}
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                  onClick={() => {
+                    if (selectedDate) {
+                      setSelectedDate(undefined);
+                    } else {
+                      setSelectedDate(new Date());
+                    }
+                  }}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? selectedDate.toLocaleDateString('fr-FR') : "Toutes les dates"}
+                </Button>
+                {selectedDate && (
+                  <div className="mt-2">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      className="rounded-md border"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full mt-2"
+                      onClick={() => setSelectedDate(undefined)}
+                    >
+                      Effacer le filtre
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
@@ -310,6 +339,7 @@ const Promos: React.FC = () => {
         <CardHeader>
           <CardTitle>Liste des promotions ({filteredPromos.length})</CardTitle>
           <CardDescription>
+            {viewMode === 'all' && 'Toutes les promotions'}
             {viewMode === 'current' && 'Promotions actuellement en cours'}
             {viewMode === 'upcoming' && 'Promotions à venir'}
             {viewMode === 'history' && 'Historique des promotions'}
