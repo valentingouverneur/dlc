@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { BarChart, DonutChart } from '@tremor/react';
-import { Search, Filter, Calendar as CalendarIcon, TrendingUp, Package } from 'lucide-react';
+import { Search, Filter, Calendar as CalendarIcon, TrendingUp, Package, Upload } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Promos: React.FC = () => {
   const [promos, setPromos] = useState<Promo[]>([]);
@@ -131,10 +132,18 @@ const Promos: React.FC = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Promotions</h1>
           <p className="text-sm text-gray-500 mt-1">Gestion des promotions en cours et à venir</p>
         </div>
-        <Button className="w-full sm:w-auto">
-          <Package className="w-4 h-4 mr-2" />
-          Nouvelle promotion
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Link to="/promos/import">
+            <Button variant="outline" className="w-full sm:w-auto">
+              <Upload className="w-4 h-4 mr-2" />
+              Importer
+            </Button>
+          </Link>
+          <Button className="w-full sm:w-auto">
+            <Package className="w-4 h-4 mr-2" />
+            Nouvelle promotion
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
