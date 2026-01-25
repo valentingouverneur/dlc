@@ -262,6 +262,8 @@ const Promos: React.FC = () => {
     setSelectedIds(new Set());
     setPromoName('');
     setPromoTg('TG1');
+    setEanWarning(`Groupe "${promoName}" créé avec ${selectedItems.length} produit(s)`);
+    setTimeout(() => setEanWarning(''), 3000);
   };
 
   // Appliquer la promo du main à tous les items du groupe
@@ -469,10 +471,18 @@ const Promos: React.FC = () => {
 
     // Traiter les items groupés
     promoGroups.forEach((group) => {
-      const main = items.find((item) => item.id === group.mainItemId && item.groupId === group.id);
+      // Chercher le main par groupId et mainItemId, ou simplement par groupId si mainItemId n'existe pas
+      const main = items.find((item) => {
+        if (group.mainItemId) {
+          return item.id === group.mainItemId && item.groupId === group.id;
+        }
+        return item.groupId === group.id && item.isMain;
+      });
+      
       const others = items.filter(
-        (item) => item.groupId === group.id && item.id !== group.mainItemId
+        (item) => item.groupId === group.id && item.id !== main?.id
       );
+      
       if (main) {
         grouped.push({ groupId: group.id, main, others });
         processedIds.add(main.id);
