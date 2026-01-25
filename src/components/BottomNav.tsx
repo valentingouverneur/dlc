@@ -60,11 +60,11 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
       <div className="bg-white rounded-t-3xl border-t border-gray-200 shadow-lg">
         <div className="flex items-center justify-around h-16 px-2 pb-2">
-        {/* DLC - Page d'accueil */}
+        {/* DLC - Page */}
         <Link
-          to="/"
+          to="/dlc"
           className={`flex flex-col items-center justify-center flex-1 h-full no-underline ${
-            isActive('/') ? '!text-[#6F73F3]' : '!text-gray-600'
+            isActive('/dlc') ? '!text-[#6F73F3]' : '!text-gray-600'
           }`}
         >
           <svg className="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20">
@@ -74,9 +74,9 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
         </Link>
 
         <Link
-          to="/dashboard"
+          to="/"
           className={`flex flex-col items-center justify-center flex-1 h-full no-underline ${
-            isActive('/dashboard') ? '!text-[#6F73F3]' : '!text-gray-600'
+            isActive('/') ? '!text-[#6F73F3]' : '!text-gray-600'
           }`}
         >
           <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
