@@ -539,11 +539,9 @@ const Promos: React.FC = () => {
             />
           </div>
         </div>
-        {(catalogSaveMessage || autoSaveStatus || eanWarning || refreshMessage) && (
-          <div className="mt-3 text-sm text-slate-600">
-            {catalogSaveMessage || autoSaveStatus || eanWarning || refreshMessage}
-          </div>
-        )}
+        <div className="mt-3 min-h-[20px] text-sm text-slate-600">
+          {catalogSaveMessage || autoSaveStatus || eanWarning || refreshMessage}
+        </div>
       </header>
 
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm">
