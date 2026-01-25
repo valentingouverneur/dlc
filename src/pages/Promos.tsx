@@ -279,16 +279,7 @@ const Promos: React.FC = () => {
     scanLockRef.current = true;
     setMobileLoading(true);
     
-    // Arrêter le scanner immédiatement après détection
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        scannerRef.current.clear();
-        scannerRef.current = null;
-      } catch (error) {
-        console.error('Erreur arrêt scanner:', error);
-      }
-    }
+    // Fermer le scanner immédiatement après détection
     setIsScannerOpen(false);
     
     const data = await fetchOpenFoodData(decodedText);
@@ -309,7 +300,23 @@ const Promos: React.FC = () => {
   }, [fetchOpenFoodData, isDuplicateEan, scanSessionEans]);
 
   useEffect(() => {
-    if (!isMobile || !isScannerOpen) return;
+    // Nettoyer le scanner si fermé
+    if (!isScannerOpen || !isMobile) {
+      if (scannerRef.current) {
+        scannerRef.current
+          .stop()
+          .catch(() => undefined)
+          .finally(() => {
+            if (scannerRef.current) {
+              scannerRef.current.clear();
+              scannerRef.current = null;
+            }
+          });
+      }
+      return;
+    }
+
+    // Démarrer le scanner
     const html5Qr = new Html5Qrcode('promo-barcode-scanner');
     scannerRef.current = html5Qr;
     const startScanner = async () => {
@@ -336,13 +343,17 @@ const Promos: React.FC = () => {
     };
     startScanner();
     return () => {
-      html5Qr
-        .stop()
-        .catch(() => undefined)
-        .finally(() => {
-          html5Qr.clear();
-          scannerRef.current = null;
-        });
+      if (scannerRef.current) {
+        scannerRef.current
+          .stop()
+          .catch(() => undefined)
+          .finally(() => {
+            if (scannerRef.current) {
+              scannerRef.current.clear();
+              scannerRef.current = null;
+            }
+          });
+      }
     };
   }, [handleMobileScan, isMobile, isScannerOpen]);
 
