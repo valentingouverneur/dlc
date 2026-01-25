@@ -83,11 +83,19 @@ const Promos: React.FC = () => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scanMessage, setScanMessage] = useState('');
   const [autoSaveStatus, setAutoSaveStatus] = useState('');
+  const [eanWarning, setEanWarning] = useState('');
 
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const lastScanRef = useRef<{ ean: string; at: number }>({ ean: '', at: 0 });
   const isLoadingCatalogRef = useRef(false);
   const autoSaveTimerRef = useRef<number | null>(null);
+
+  const normalizeEan = (value: string) => value.trim();
+  const isDuplicateEan = (value: string, excludeId?: string) => {
+    const eanValue = normalizeEan(value);
+    if (!eanValue) return false;
+    return items.some((item) => item.ean.trim() === eanValue && item.id !== excludeId);
+  };
 
   useEffect(() => {
     const query = window.matchMedia('(max-width: 768px)');
@@ -153,7 +161,14 @@ const Promos: React.FC = () => {
 
   const handleEanLookup = useCallback(
     async (id: string, ean: string) => {
-      if (!/^\d{13}$/.test(ean)) {
+      const cleaned = normalizeEan(ean);
+      if (!/^\d{13}$/.test(cleaned)) {
+        return;
+      }
+      if (isDuplicateEan(cleaned, id)) {
+        setEanWarning(`EAN déjà ajouté: ${cleaned}`);
+        updateItem(id, { ean: '', designation: '', imageUrl: '' });
+        window.setTimeout(() => setEanWarning(''), 1800);
         return;
       }
       const data = await fetchOpenFoodData(ean);
@@ -219,6 +234,11 @@ const Promos: React.FC = () => {
     if (!/^\d{13}$/.test(decodedText)) {
       return;
     }
+    if (isDuplicateEan(decodedText)) {
+      setScanMessage('EAN déjà ajouté.');
+      setTimeout(() => setScanMessage(''), 1500);
+      return;
+    }
     const now = Date.now();
     if (lastScanRef.current.ean === decodedText && now - lastScanRef.current.at < 2000) {
       return;
@@ -256,6 +276,12 @@ const Promos: React.FC = () => {
   }, [handleMobileScan, isMobile, isScannerOpen]);
 
   const addMobileItem = () => {
+    const cleaned = normalizeEan(mobileItem.ean);
+    if (cleaned && isDuplicateEan(cleaned)) {
+      setEanWarning(`EAN déjà ajouté: ${cleaned}`);
+      window.setTimeout(() => setEanWarning(''), 1800);
+      return;
+    }
     setItems((prev) => [...prev, { ...mobileItem, id: crypto.randomUUID() }]);
     setMobileItem(createEmptyItem());
     setMobileStep('form');
@@ -399,9 +425,9 @@ const Promos: React.FC = () => {
             />
           </div>
         </div>
-        {(catalogSaveMessage || autoSaveStatus) && (
+        {(catalogSaveMessage || autoSaveStatus || eanWarning) && (
           <div className="mt-3 text-sm text-slate-600">
-            {catalogSaveMessage || autoSaveStatus}
+            {catalogSaveMessage || autoSaveStatus || eanWarning}
           </div>
         )}
       </header>
