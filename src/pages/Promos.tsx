@@ -74,8 +74,6 @@ const Promos: React.FC = () => {
   const [promoTg, setPromoTg] = useState('TG1');
 
   const [isMobile, setIsMobile] = useState(false);
-  const [mobileStep, setMobileStep] = useState<'scan' | 'form'>('scan');
-  const [mobileItem, setMobileItem] = useState<PromoItem>(createEmptyItem());
   const [mobileLoading, setMobileLoading] = useState(false);
   const [catalogSaving, setCatalogSaving] = useState(false);
   const [catalogSaveMessage, setCatalogSaveMessage] = useState('');
@@ -258,6 +256,13 @@ const Promos: React.FC = () => {
     if (!/^\d{13}$/.test(decodedText)) {
       return;
     }
+    
+    const now = Date.now();
+    // Vérifier le lock AVANT tout traitement
+    if (scanLockRef.current) {
+      return;
+    }
+    // Vérifier les doublons AVANT le lock
     if (scanSessionEans.has(decodedText)) {
       setScanMessage('EAN déjà scanné.');
       setTimeout(() => setScanMessage(''), 1500);
@@ -268,59 +273,66 @@ const Promos: React.FC = () => {
       setTimeout(() => setScanMessage(''), 1500);
       return;
     }
-    const now = Date.now();
-    if (scanLockRef.current) {
-      return;
-    }
+    // Vérifier le dernier scan
     if (lastScanRef.current.ean === decodedText && now - lastScanRef.current.at < 5000) {
       return;
     }
-    lastScanRef.current = { ean: decodedText, at: now };
+    
+    // Mettre le lock IMMÉDIATEMENT pour éviter les scans multiples
     scanLockRef.current = true;
+    lastScanRef.current = { ean: decodedText, at: now };
+    
+    // Fermer le scanner IMMÉDIATEMENT pour éviter les scans en boucle
+    setIsScannerOpen(false);
     setMobileLoading(true);
     
-    // Fermer le scanner immédiatement après détection
-    setIsScannerOpen(false);
-    
-    const data = await fetchOpenFoodData(decodedText);
-    const newItem: PromoItem = {
-      ...createEmptyItem(),
-      ean: decodedText,
-      designation: data?.designation || '',
-      imageUrl: data?.imageUrl || ''
-    };
-    setItems((prev) => [...prev, newItem]);
-    setScanSessionEans((prev) => new Set(prev).add(decodedText));
-    setMobileLoading(false);
-    setScanMessage('Produit ajouté avec succès.');
-    setTimeout(() => setScanMessage(''), 1500);
-    window.setTimeout(() => {
-      scanLockRef.current = false;
-    }, 2500);
+    try {
+      const data = await fetchOpenFoodData(decodedText);
+      const newItem: PromoItem = {
+        ...createEmptyItem(),
+        ean: decodedText,
+        designation: data?.designation || '',
+        imageUrl: data?.imageUrl || ''
+      };
+      setItems((prev) => [...prev, newItem]);
+      setScanSessionEans((prev) => new Set(prev).add(decodedText));
+      setScanMessage('Produit ajouté avec succès.');
+      setTimeout(() => setScanMessage(''), 1500);
+    } catch (error) {
+      console.error('Erreur lors du scan:', error);
+      setScanMessage('Erreur lors de l\'ajout.');
+      setTimeout(() => setScanMessage(''), 1500);
+    } finally {
+      setMobileLoading(false);
+      // Libérer le lock après un délai
+      window.setTimeout(() => {
+        scanLockRef.current = false;
+      }, 3000);
+    }
   }, [fetchOpenFoodData, isDuplicateEan, scanSessionEans]);
 
   useEffect(() => {
-    // Nettoyer le scanner si fermé
+    // Nettoyer le scanner si fermé ou pas mobile
     if (!isScannerOpen || !isMobile) {
       if (scannerRef.current) {
-        scannerRef.current
+        const scanner = scannerRef.current;
+        scanner
           .stop()
           .catch(() => undefined)
           .finally(() => {
-            if (scannerRef.current) {
-              scannerRef.current.clear();
-              scannerRef.current = null;
-            }
+            scanner.clear();
+            scannerRef.current = null;
           });
       }
       return;
     }
 
-    // Démarrer le scanner
-    const html5Qr = new Html5Qrcode('promo-barcode-scanner');
-    scannerRef.current = html5Qr;
+    // Démarrer le scanner seulement si ouvert et mobile
+    let html5Qr: Html5Qrcode | null = null;
     const startScanner = async () => {
       try {
+        html5Qr = new Html5Qrcode('promo-barcode-scanner');
+        scannerRef.current = html5Qr;
         await html5Qr.start(
           { facingMode: 'environment' },
           {
@@ -339,43 +351,29 @@ const Promos: React.FC = () => {
         );
       } catch (error) {
         console.error('Erreur démarrage scanner:', error);
+        if (html5Qr) {
+          html5Qr.clear();
+          scannerRef.current = null;
+        }
       }
     };
+    
     startScanner();
+    
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current
+      if (html5Qr) {
+        html5Qr
           .stop()
           .catch(() => undefined)
           .finally(() => {
-            if (scannerRef.current) {
-              scannerRef.current.clear();
+            html5Qr?.clear();
+            if (scannerRef.current === html5Qr) {
               scannerRef.current = null;
             }
           });
       }
     };
   }, [handleMobileScan, isMobile, isScannerOpen]);
-
-  const addMobileItem = () => {
-    const cleaned = normalizeEan(mobileItem.ean);
-    if (cleaned && scanSessionEans.has(cleaned)) {
-      setEanWarning(`EAN déjà scanné: ${cleaned}`);
-      window.setTimeout(() => setEanWarning(''), 1800);
-      return;
-    }
-    if (cleaned && isDuplicateEan(cleaned)) {
-      setEanWarning(`EAN déjà ajouté: ${cleaned}`);
-      window.setTimeout(() => setEanWarning(''), 1800);
-      return;
-    }
-    setItems((prev) => [...prev, { ...mobileItem, id: crypto.randomUUID() }]);
-    if (cleaned) {
-      setScanSessionEans((prev) => new Set(prev).add(cleaned));
-    }
-    setMobileItem(createEmptyItem());
-    setMobileStep('form');
-  };
 
   const removeSelectedItems = () => {
     if (selectedIds.size === 0) return;
@@ -746,6 +744,24 @@ const Promos: React.FC = () => {
         </div>
 
         <div className="md:hidden space-y-3 p-4">
+          {/* Bouton de scan avant la liste sur mobile */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => {
+                setScanSessionEans(new Set());
+                setIsScannerOpen(true);
+              }}
+              className="flex-1 rounded-lg bg-[#6F73F3] px-3 py-2 text-sm font-medium text-white hover:bg-[#5F64EE]"
+            >
+              Scanner un produit
+            </button>
+            <button
+              onClick={addRow}
+              className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Ajouter manuellement
+            </button>
+          </div>
           {items.map((item) => (
             <div key={item.id} className="rounded-xl border border-slate-200 p-4 space-y-3">
               <div className="flex items-center gap-3">
@@ -899,111 +915,6 @@ const Promos: React.FC = () => {
         </div>
       </section>
 
-      <section className="md:hidden bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
-        <h3 className="text-lg font-semibold text-slate-900">Saisie mobile (scan rapide)</h3>
-        <p className="text-sm text-slate-500">
-          Scanner en plein écran, ajout automatique à la liste, modification ensuite sur PC.
-        </p>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              setScanSessionEans(new Set());
-              setIsScannerOpen(true);
-            }}
-            className="flex-1 rounded-lg bg-[#6F73F3] px-3 py-2 text-sm font-medium text-white hover:bg-[#5F64EE]"
-          >
-            Scanner
-          </button>
-          <button
-            onClick={() => setMobileStep('form')}
-            className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
-          >
-            Saisie manuelle
-          </button>
-        </div>
-
-        {mobileStep === 'form' && (
-          <div className="space-y-3">
-            <input
-              value={mobileItem.ean}
-              onChange={(event) => {
-                const digits = normalizeEan(event.target.value);
-                setMobileItem((prev) => ({ ...prev, ean: digits }));
-                if (digits.length === 13) {
-                  handleEanLookup(mobileItem.id, digits);
-                }
-              }}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-              placeholder="EAN"
-            />
-            <input
-              value={mobileItem.designation}
-              onChange={(event) => setMobileItem((prev) => ({ ...prev, designation: event.target.value }))}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-              placeholder="Désignation"
-            />
-            <select
-              value={mobileItem.promoType}
-              onChange={(event) => setMobileItem((prev) => ({ ...prev, promoType: event.target.value }))}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-            >
-              <option value="">Type promo</option>
-              {promoTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                value={mobileItem.priceBuy}
-                onChange={(event) =>
-                  setMobileItem((prev) => ({
-                    ...prev,
-                    priceBuy: event.target.value,
-                    margin: prev.marginLocked ? prev.margin : computeMargin(event.target.value, prev.priceSell)
-                  }))
-                }
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                placeholder="P3N"
-              />
-              <input
-                value={mobileItem.priceSell}
-                onChange={(event) =>
-                  setMobileItem((prev) => ({
-                    ...prev,
-                    priceSell: event.target.value,
-                    margin: prev.marginLocked ? prev.margin : computeMargin(prev.priceBuy, event.target.value)
-                  }))
-                }
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                placeholder="PVH"
-              />
-              <input
-                value={mobileItem.margin}
-                onChange={(event) =>
-                  setMobileItem((prev) => ({ ...prev, margin: event.target.value, marginLocked: true }))
-                }
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                placeholder="Marge %"
-              />
-              <input
-                value={mobileItem.stock}
-                onChange={(event) => setMobileItem((prev) => ({ ...prev, stock: event.target.value }))}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                placeholder="Stock"
-              />
-            </div>
-            <button
-              onClick={addMobileItem}
-              className="w-full rounded-lg bg-[#6F73F3] px-3 py-2 text-sm font-medium text-white hover:bg-[#5F64EE]"
-            >
-              Enregistrer
-            </button>
-          </div>
-        )}
-      </section>
 
       {isScannerOpen && (
         <div className="fixed inset-0 z-50 bg-black">
@@ -1025,11 +936,23 @@ const Promos: React.FC = () => {
               display: none !important;
             }
           `}</style>
-          <div className="absolute top-4 left-4 right-4 flex items-center justify-between text-white">
+          <div className="absolute top-4 left-4 right-4 flex items-center justify-between text-white z-10">
             <div className="text-sm">Scanner un code-barres</div>
             <button
-              onClick={() => setIsScannerOpen(false)}
-              className="h-9 w-9 rounded-full border border-white/40 text-lg leading-none"
+              onClick={async () => {
+                if (scannerRef.current) {
+                  try {
+                    await scannerRef.current.stop();
+                    scannerRef.current.clear();
+                    scannerRef.current = null;
+                  } catch (error) {
+                    console.error('Erreur arrêt scanner:', error);
+                  }
+                }
+                setIsScannerOpen(false);
+                setScanMessage('');
+              }}
+              className="h-9 w-9 rounded-full border border-white/40 text-lg leading-none hover:bg-white/20"
               aria-label="Fermer"
             >
               ×
@@ -1039,12 +962,12 @@ const Promos: React.FC = () => {
             <div id="promo-barcode-scanner" className="w-full h-full" />
           </div>
           {mobileLoading && (
-            <div className="absolute bottom-6 left-4 right-4 rounded-lg bg-white/90 px-3 py-2 text-xs text-slate-900">
+            <div className="absolute bottom-6 left-4 right-4 rounded-lg bg-white/90 px-3 py-2 text-xs text-slate-900 z-10">
               Récupération des infos produit...
             </div>
           )}
           {scanMessage && (
-            <div className="absolute bottom-6 left-4 right-4 rounded-lg bg-emerald-500/90 px-3 py-2 text-xs text-white">
+            <div className="absolute bottom-6 left-4 right-4 rounded-lg bg-emerald-500/90 px-3 py-2 text-xs text-white z-10">
               {scanMessage}
             </div>
           )}
