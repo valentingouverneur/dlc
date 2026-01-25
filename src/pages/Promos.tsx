@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { Link } from 'react-router-dom';
 import { ImageSearchService } from '../services/ImageSearchService';
 
 type PromoItem = {
@@ -263,6 +264,12 @@ const Promos: React.FC = () => {
             <p className="text-sm text-slate-500">Catalogue défini avant saisie • regroupement en promos ensuite</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link
+              to="/promos"
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Retour au calendrier
+            </Link>
             <button className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
               Importer un fichier
             </button>

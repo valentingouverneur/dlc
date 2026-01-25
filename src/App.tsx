@@ -6,6 +6,7 @@ import Scanner from './pages/Scanner';
 import ProductDetails from './pages/ProductDetails';
 import Affiches from './pages/Affiches';
 import Promos from './pages/Promos';
+import PromosCalendar from './pages/PromosCalendar';
 import ImportPromos from './pages/ImportPromos';
 import TestDashboard from './pages/TestDashboard';
 import Sidebar from './components/Sidebar';
@@ -37,7 +38,8 @@ function App() {
               <Route path="/products" element={<Products key={refreshKey} />} />
               <Route path="/product/:id" element={<ProductDetails />} />
               <Route path="/affiches" element={<Affiches key={refreshKey} />} />
-              <Route path="/promos" element={<Promos />} />
+              <Route path="/promos" element={<PromosCalendar />} />
+              <Route path="/promos/manage" element={<Promos />} />
               <Route path="/promos/import" element={<ImportPromos />} />
               <Route path="/test" element={<TestDashboard />} />
             </Routes>
