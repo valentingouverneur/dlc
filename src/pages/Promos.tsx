@@ -282,7 +282,18 @@ const Promos: React.FC = () => {
     scanLockRef.current = true;
     lastScanRef.current = { ean: decodedText, at: now };
     
-    // Fermer le scanner IMMÉDIATEMENT pour éviter les scans en boucle
+    // ARRÊTER ET NETTOYER LE SCANNER IMMÉDIATEMENT (comme dans AfficheScanner)
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+        scannerRef.current.clear();
+        scannerRef.current = null;
+      } catch (error) {
+        console.error('Erreur arrêt scanner:', error);
+      }
+    }
+    
+    // Fermer le scanner (change l'état pour masquer l'interface)
     setIsScannerOpen(false);
     setMobileLoading(true);
     
@@ -312,18 +323,8 @@ const Promos: React.FC = () => {
   }, [fetchOpenFoodData, isDuplicateEan, scanSessionEans]);
 
   useEffect(() => {
-    // Nettoyer le scanner si fermé ou pas mobile
-    if (!isScannerOpen || !isMobile) {
-      if (scannerRef.current) {
-        const scanner = scannerRef.current;
-        scanner
-          .stop()
-          .catch(() => undefined)
-          .finally(() => {
-            scanner.clear();
-            scannerRef.current = null;
-          });
-      }
+    // Ne rien faire si pas mobile ou scanner fermé
+    if (!isMobile || !isScannerOpen) {
       return;
     }
 
@@ -352,6 +353,11 @@ const Promos: React.FC = () => {
       } catch (error) {
         console.error('Erreur démarrage scanner:', error);
         if (html5Qr) {
+          try {
+            await html5Qr.stop();
+          } catch (e) {
+            // Ignorer les erreurs d'arrêt
+          }
           html5Qr.clear();
           scannerRef.current = null;
         }
@@ -360,8 +366,9 @@ const Promos: React.FC = () => {
     
     startScanner();
     
+    // Fonction de nettoyage
     return () => {
-      if (html5Qr) {
+      if (html5Qr && scannerRef.current === html5Qr) {
         html5Qr
           .stop()
           .catch(() => undefined)
