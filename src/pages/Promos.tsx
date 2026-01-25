@@ -147,9 +147,15 @@ const Promos: React.FC = () => {
         const product = response.data.product;
         const designation = product.product_name_fr || product.product_name || product.generic_name || '';
         const googleImage = await ImageSearchService.searchImage(barcode, designation);
+        const offImage =
+          product.image_url ||
+          product.image_front_url ||
+          product.image_front_small_url ||
+          product.image_small_url ||
+          '';
         return {
           designation,
-          imageUrl: googleImage || ''
+          imageUrl: googleImage || offImage || ''
         };
       }
       const googleImage = await ImageSearchService.searchImage(barcode);
@@ -388,6 +394,25 @@ const Promos: React.FC = () => {
         if (imageUrl) {
           updated[i] = { ...updated[i], imageUrl };
           setItems([...updated]);
+        } else {
+          try {
+            const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${item.ean}.json`);
+            if (response.data.status === 1 && response.data.product) {
+              const product = response.data.product;
+              const offImage =
+                product.image_url ||
+                product.image_front_url ||
+                product.image_front_small_url ||
+                product.image_small_url ||
+                '';
+              if (offImage) {
+                updated[i] = { ...updated[i], imageUrl: offImage };
+                setItems([...updated]);
+              }
+            }
+          } catch (error) {
+            console.warn('Open Food Facts image error', error);
+          }
         }
         await new Promise((resolve) => setTimeout(resolve, 350));
       }
