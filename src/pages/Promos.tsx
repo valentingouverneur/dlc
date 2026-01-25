@@ -82,9 +82,12 @@ const Promos: React.FC = () => {
   const [catalogId, setCatalogId] = useState<string | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scanMessage, setScanMessage] = useState('');
+  const [autoSaveStatus, setAutoSaveStatus] = useState('');
 
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const lastScanRef = useRef<{ ean: string; at: number }>({ ean: '', at: 0 });
+  const isLoadingCatalogRef = useRef(false);
+  const autoSaveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const query = window.matchMedia('(max-width: 768px)');
@@ -97,6 +100,7 @@ const Promos: React.FC = () => {
   useEffect(() => {
     const loadLatestCatalog = async () => {
       try {
+        isLoadingCatalogRef.current = true;
         const q = query(collection(db, 'promoCatalogs'), orderBy('createdAt', 'desc'), limit(1));
         const snapshot = await getDocs(q);
         if (snapshot.empty) return;
@@ -116,6 +120,8 @@ const Promos: React.FC = () => {
         setPromoGroups(data.promoGroups || []);
       } catch (error) {
         console.error('Erreur chargement catalogue:', error);
+      } finally {
+        isLoadingCatalogRef.current = false;
       }
     };
 
@@ -262,13 +268,17 @@ const Promos: React.FC = () => {
     }
   };
 
-  const handleSaveCatalog = async () => {
+  const saveCatalog = async (showMessage: boolean) => {
     if (!catalogName.trim()) {
-      setCatalogSaveMessage('Nom de catalogue obligatoire.');
+      if (showMessage) {
+        setCatalogSaveMessage('Nom de catalogue obligatoire.');
+      }
       return;
     }
-    setCatalogSaving(true);
-    setCatalogSaveMessage('');
+    if (showMessage) {
+      setCatalogSaving(true);
+      setCatalogSaveMessage('');
+    }
     try {
       if (catalogId) {
         await updateDoc(doc(db, 'promoCatalogs', catalogId), {
@@ -291,14 +301,43 @@ const Promos: React.FC = () => {
         });
         setCatalogId(docRef.id);
       }
-      setCatalogSaveMessage('Catalogue enregistré.');
+      if (showMessage) {
+        setCatalogSaveMessage('Catalogue enregistré.');
+      } else {
+        setAutoSaveStatus('Auto-enregistré');
+        window.setTimeout(() => setAutoSaveStatus(''), 1200);
+      }
     } catch (error) {
       console.error('Erreur enregistrement catalogue:', error);
-      setCatalogSaveMessage('Erreur lors de l’enregistrement.');
+      if (showMessage) {
+        setCatalogSaveMessage('Erreur lors de l’enregistrement.');
+      }
     } finally {
-      setCatalogSaving(false);
+      if (showMessage) {
+        setCatalogSaving(false);
+      }
     }
   };
+
+  const handleSaveCatalog = async () => {
+    await saveCatalog(true);
+  };
+
+  useEffect(() => {
+    if (isLoadingCatalogRef.current) return;
+    if (!catalogName.trim()) return;
+    if (autoSaveTimerRef.current) {
+      window.clearTimeout(autoSaveTimerRef.current);
+    }
+    autoSaveTimerRef.current = window.setTimeout(() => {
+      saveCatalog(false);
+    }, 1200);
+    return () => {
+      if (autoSaveTimerRef.current) {
+        window.clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [catalogName, catalogStart, catalogEnd, items, promoGroups]);
 
   const selectedCount = selectedIds.size;
   const selectedItems = useMemo(() => items.filter((item) => selectedIds.has(item.id)), [items, selectedIds]);
@@ -360,8 +399,10 @@ const Promos: React.FC = () => {
             />
           </div>
         </div>
-        {catalogSaveMessage && (
-          <div className="mt-3 text-sm text-slate-600">{catalogSaveMessage}</div>
+        {(catalogSaveMessage || autoSaveStatus) && (
+          <div className="mt-3 text-sm text-slate-600">
+            {catalogSaveMessage || autoSaveStatus}
+          </div>
         )}
       </header>
 
@@ -741,9 +782,10 @@ const Promos: React.FC = () => {
             <div className="text-sm">Scanner un code-barres</div>
             <button
               onClick={() => setIsScannerOpen(false)}
-              className="rounded-full border border-white/40 px-3 py-1 text-xs"
+              className="h-9 w-9 rounded-full border border-white/40 text-lg leading-none"
+              aria-label="Fermer"
             >
-              Fermer
+              ×
             </button>
           </div>
           <div className="absolute inset-0 flex items-center justify-center">
