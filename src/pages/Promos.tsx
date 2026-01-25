@@ -278,6 +278,19 @@ const Promos: React.FC = () => {
     lastScanRef.current = { ean: decodedText, at: now };
     scanLockRef.current = true;
     setMobileLoading(true);
+    
+    // Arrêter le scanner immédiatement après détection
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+        scannerRef.current.clear();
+        scannerRef.current = null;
+      } catch (error) {
+        console.error('Erreur arrêt scanner:', error);
+      }
+    }
+    setIsScannerOpen(false);
+    
     const data = await fetchOpenFoodData(decodedText);
     const newItem: PromoItem = {
       ...createEmptyItem(),
