@@ -87,6 +87,7 @@ const Promos: React.FC = () => {
 
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const lastScanRef = useRef<{ ean: string; at: number }>({ ean: '', at: 0 });
+  const scanLockRef = useRef(false);
   const isLoadingCatalogRef = useRef(false);
   const autoSaveTimerRef = useRef<number | null>(null);
 
@@ -240,10 +241,14 @@ const Promos: React.FC = () => {
       return;
     }
     const now = Date.now();
-    if (lastScanRef.current.ean === decodedText && now - lastScanRef.current.at < 2000) {
+    if (scanLockRef.current) {
+      return;
+    }
+    if (lastScanRef.current.ean === decodedText && now - lastScanRef.current.at < 5000) {
       return;
     }
     lastScanRef.current = { ean: decodedText, at: now };
+    scanLockRef.current = true;
     setMobileLoading(true);
     const data = await fetchOpenFoodData(decodedText);
     const newItem: PromoItem = {
@@ -256,6 +261,9 @@ const Promos: React.FC = () => {
     setMobileLoading(false);
     setScanMessage('Produit ajouté avec succès.');
     setTimeout(() => setScanMessage(''), 1500);
+    window.setTimeout(() => {
+      scanLockRef.current = false;
+    }, 2500);
   }, [fetchOpenFoodData]);
 
   useEffect(() => {
