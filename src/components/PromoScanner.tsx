@@ -93,7 +93,7 @@ const PromoScanner: React.FC<PromoScannerProps> = ({ onClose, onProductScanned }
   };
 
   // Enregistrer le produit
-  const handleSave = () => {
+  const handleSave = (closeAfterSave: boolean = true) => {
     if (!ean) {
       setError('Le code-barres (EAN) est obligatoire');
       return;
@@ -103,19 +103,20 @@ const PromoScanner: React.FC<PromoScannerProps> = ({ onClose, onProductScanned }
     const imageUrl = openFoodData?.imageUrl || '';
     
     onProductScanned(ean, designation, imageUrl);
-    onClose();
-  };
-
-  // Réinitialiser pour scanner un autre
-  const handleScanAnother = () => {
-    setEan('');
-    setOpenFoodData(null);
-    setError('');
-    setStep('barcode');
-    // Réinitialiser le scanner
-    if (scannerRef.current) {
-      scannerRef.current.clear();
-      scannerRef.current = null;
+    
+    if (closeAfterSave) {
+      onClose();
+    } else {
+      // Réinitialiser pour scanner un autre
+      setEan('');
+      setOpenFoodData(null);
+      setError('');
+      setStep('barcode');
+      // Réinitialiser le scanner
+      if (scannerRef.current) {
+        scannerRef.current.clear();
+        scannerRef.current = null;
+      }
     }
   };
 
@@ -194,10 +195,11 @@ const PromoScanner: React.FC<PromoScannerProps> = ({ onClose, onProductScanned }
           </div>
           <div className="mt-6 flex justify-end space-x-3">
             <button
-              onClick={handleScanAnother}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              onClick={() => handleSave(false)}
+              disabled={!ean}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50"
             >
-              Scanner un autre
+              Enregistrer et scanner un autre
             </button>
             <button
               onClick={onClose}
@@ -206,11 +208,11 @@ const PromoScanner: React.FC<PromoScannerProps> = ({ onClose, onProductScanned }
               Fermer
             </button>
             <button
-              onClick={handleSave}
+              onClick={() => handleSave(true)}
               disabled={!ean}
               className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
             >
-              Ajouter
+              Enregistrer
             </button>
           </div>
         </div>

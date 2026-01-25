@@ -638,7 +638,7 @@ const Promos: React.FC = () => {
           </table>
         </div>
 
-        <div className="md:hidden space-y-3 p-4">
+        <div className="md:hidden overflow-x-auto p-4">
           {/* Bouton de scan avant la liste sur mobile */}
           <div className="flex gap-2 mb-4">
             <button
@@ -654,86 +654,124 @@ const Promos: React.FC = () => {
               Ajouter manuellement
             </button>
           </div>
-          {items.map((item) => (
-            <div key={item.id} className="rounded-xl border border-slate-200 p-4 space-y-3">
-              <div className="flex items-center gap-3">
-                {item.imageUrl ? (
-                  <img src={item.imageUrl} alt="" className="h-12 w-12 rounded-lg border object-contain" />
-                ) : (
-                  <div className="h-12 w-12 rounded-lg border border-dashed border-slate-200 bg-slate-50" />
-                )}
-                <div className="flex-1 space-y-2">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50 text-slate-500">
+              <tr>
+                <th className="px-2 py-2 text-left text-xs font-semibold">
                   <input
-                    value={item.ean}
-                    onChange={(event) => {
-                      const digits = normalizeEan(event.target.value);
-                      updateItem(item.id, { ean: digits });
-                      if (digits.length === 13) {
-                        handleEanLookup(item.id, digits);
-                      }
-                    }}
-                    onBlur={() => handleEanLookup(item.id, item.ean)}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
-                    placeholder="EAN"
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    className="h-3 w-3 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
                   />
-                  <input
-                    value={item.designation}
-                    onChange={(event) => updateItem(item.id, { designation: event.target.value })}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
-                    placeholder="Désignation"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  value={item.priceBuy}
-                  onChange={(event) => updateItem(item.id, { priceBuy: event.target.value })}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
-                  placeholder="P3N"
-                />
-                <input
-                  value={item.priceSell}
-                  onChange={(event) => updateItem(item.id, { priceSell: event.target.value })}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
-                  placeholder="PVH"
-                />
-                <input
-                  value={item.margin}
-                  onChange={(event) => updateItem(item.id, { margin: event.target.value, marginLocked: true })}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
-                  placeholder="Marge %"
-                />
-                <input
-                  value={item.stock}
-                  onChange={(event) => updateItem(item.id, { stock: event.target.value })}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
-                  placeholder="Stock"
-                />
-              </div>
-              <select
-                value={item.promoType}
-                onChange={(event) => updateItem(item.id, { promoType: event.target.value })}
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
-              >
-                <option value="">Type promo</option>
-                {promoTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={() => toggleSelected(item.id)}
-                className={`w-full rounded-lg px-3 py-2 text-xs font-medium ${
-                  selectedIds.has(item.id)
-                    ? 'bg-[#6F73F3] text-white'
-                    : 'border border-slate-200 bg-white text-slate-700'
-                }`}
-              >
-                {selectedIds.has(item.id) ? 'Sélectionné' : 'Sélectionner pour promo'}
-              </button>
-            </div>
-          ))}
+                </th>
+                <th className="px-2 py-2 text-left text-xs font-semibold">EAN</th>
+                <th className="px-2 py-2 text-left text-xs font-semibold">Photo</th>
+                <th className="px-2 py-2 text-left text-xs font-semibold">Désignation</th>
+                <th className="px-2 py-2 text-left text-xs font-semibold">Type</th>
+                <th className="px-2 py-2 text-left text-xs font-semibold">P3N</th>
+                <th className="px-2 py-2 text-left text-xs font-semibold">PVH</th>
+                <th className="px-2 py-2 text-left text-xs font-semibold">Marge</th>
+                <th className="px-2 py-2 text-left text-xs font-semibold">Stock</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {items.map((item) => (
+                <tr key={item.id} className="hover:bg-slate-50">
+                  <td className="px-2 py-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(item.id)}
+                      onChange={() => toggleSelected(item.id)}
+                      className="h-3 w-3 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                    />
+                  </td>
+                  <td className="px-2 py-2">
+                    <input
+                      value={item.ean}
+                      onChange={(event) => {
+                        const digits = normalizeEan(event.target.value);
+                        updateItem(item.id, { ean: digits });
+                        if (digits.length === 13) {
+                          handleEanLookup(item.id, digits);
+                        }
+                      }}
+                      onBlur={() => handleEanLookup(item.id, item.ean)}
+                      className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="EAN"
+                    />
+                  </td>
+                  <td className="px-2 py-2">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt="" className="h-8 w-8 rounded border object-contain" />
+                    ) : (
+                      <div className="h-8 w-8 rounded border border-dashed border-slate-200 bg-slate-50" />
+                    )}
+                  </td>
+                  <td className="px-2 py-2 min-w-[120px]">
+                    <input
+                      value={item.designation}
+                      onChange={(event) => updateItem(item.id, { designation: event.target.value })}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="Désignation"
+                    />
+                  </td>
+                  <td className="px-2 py-2">
+                    <select
+                      value={item.promoType}
+                      onChange={(event) => updateItem(item.id, { promoType: event.target.value })}
+                      className="w-28 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    >
+                      <option value="">-</option>
+                      {promoTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-2 py-2">
+                    <input
+                      value={item.priceBuy}
+                      onChange={(event) => updateItem(item.id, { priceBuy: event.target.value })}
+                      className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="P3N"
+                    />
+                  </td>
+                  <td className="px-2 py-2">
+                    <input
+                      value={item.priceSell}
+                      onChange={(event) => updateItem(item.id, { priceSell: event.target.value })}
+                      className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="PVH"
+                    />
+                  </td>
+                  <td className="px-2 py-2">
+                    <input
+                      value={item.margin}
+                      onChange={(event) => updateItem(item.id, { margin: event.target.value, marginLocked: true })}
+                      className="w-14 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="%"
+                    />
+                  </td>
+                  <td className="px-2 py-2">
+                    <input
+                      value={item.stock}
+                      onChange={(event) => updateItem(item.id, { stock: event.target.value })}
+                      onBlur={(event) => {
+                        const index = items.findIndex(i => i.id === item.id);
+                        if (index !== -1) {
+                          handleStockBlur(index, event.target.value);
+                        }
+                      }}
+                      className="w-14 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="UVC"
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 
