@@ -527,7 +527,7 @@ const Promos: React.FC = () => {
             </button>
             <button
               onClick={handleSaveCatalog}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+              className="rounded-lg bg-[#6F73F3] px-4 py-2 text-sm font-medium text-white hover:bg-[#5F64EE] disabled:opacity-60"
               disabled={catalogSaving}
             >
               {catalogSaving ? 'Enregistrement...' : 'Enregistrer le catalogue'}
@@ -794,7 +794,7 @@ const Promos: React.FC = () => {
                 onClick={() => toggleSelected(item.id)}
                 className={`w-full rounded-lg px-3 py-2 text-xs font-medium ${
                   selectedIds.has(item.id)
-                    ? 'bg-slate-900 text-white'
+                    ? 'bg-[#6F73F3] text-white'
                     : 'border border-slate-200 bg-white text-slate-700'
                 }`}
               >
@@ -829,7 +829,7 @@ const Promos: React.FC = () => {
             </select>
             <button
               onClick={createPromoGroup}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-lg bg-[#6F73F3] px-4 py-2 text-sm font-medium text-white hover:bg-[#5F64EE] disabled:opacity-50"
               disabled={!promoName || selectedCount === 0}
             >
               Créer la promo
@@ -887,7 +887,7 @@ const Promos: React.FC = () => {
               setScanSessionEans(new Set());
               setIsScannerOpen(true);
             }}
-            className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white"
+            className="flex-1 rounded-lg bg-[#6F73F3] px-3 py-2 text-sm font-medium text-white hover:bg-[#5F64EE]"
           >
             Scanner
           </button>
@@ -973,7 +973,7 @@ const Promos: React.FC = () => {
             </div>
             <button
               onClick={addMobileItem}
-              className="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white"
+              className="w-full rounded-lg bg-[#6F73F3] px-3 py-2 text-sm font-medium text-white hover:bg-[#5F64EE]"
             >
               Enregistrer
             </button>

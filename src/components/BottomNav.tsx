@@ -64,7 +64,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
         <Link
           to="/"
           className={`flex flex-col items-center justify-center flex-1 h-full no-underline ${
-            isActive('/') ? '!text-black' : '!text-gray-600'
+            isActive('/') ? '!text-[#6F73F3]' : '!text-gray-600'
           }`}
         >
           <svg className="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20">
@@ -77,7 +77,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
         <Link
           to="/products"
           className={`flex flex-col items-center justify-center flex-1 h-full no-underline ${
-            isActive('/products') ? '!text-black' : '!text-gray-600'
+            isActive('/products') ? '!text-[#6F73F3]' : '!text-gray-600'
           }`}
         >
           {isActive('/products') ? (
@@ -104,7 +104,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
         <Link
           to="/affiches"
           className={`flex flex-col items-center justify-center flex-1 h-full no-underline ${
-            isActive('/affiches') ? '!text-black' : '!text-gray-600'
+            isActive('/affiches') ? '!text-[#6F73F3]' : '!text-gray-600'
           }`}
         >
           {isActive('/affiches') ? (
