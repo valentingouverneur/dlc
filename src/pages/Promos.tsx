@@ -262,8 +262,13 @@ const Promos: React.FC = () => {
     if (!isMobile || !isScannerOpen) return;
     const config = {
       fps: 10,
-      qrbox: { width: 240, height: 240 },
-      aspectRatio: 1.0
+      qrbox: { width: 260, height: 260 },
+      aspectRatio: 1.777,
+      videoConstraints: {
+        facingMode: 'environment',
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
     };
     scannerRef.current = new Html5QrcodeScanner('promo-barcode-scanner', config, false);
     scannerRef.current.render(handleMobileScan, () => undefined);
@@ -804,6 +809,22 @@ const Promos: React.FC = () => {
 
       {isScannerOpen && (
         <div className="fixed inset-0 z-50 bg-black">
+          <style>{`
+            #promo-barcode-scanner {
+              position: absolute;
+              inset: 0;
+              width: 100%;
+              height: 100%;
+            }
+            #promo-barcode-scanner video {
+              width: 100% !important;
+              height: 100% !important;
+              object-fit: cover;
+            }
+            #promo-barcode-scanner__scan_region img {
+              display: none;
+            }
+          `}</style>
           <div className="absolute top-4 left-4 right-4 flex items-center justify-between text-white">
             <div className="text-sm">Scanner un code-barres</div>
             <button
