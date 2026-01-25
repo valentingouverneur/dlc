@@ -321,6 +321,15 @@ const Promos: React.FC = () => {
     setSelectedIds(new Set());
   };
 
+  const allSelected = items.length > 0 && selectedIds.size === items.length;
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+      return;
+    }
+    setSelectedIds(new Set(items.map((item) => item.id)));
+  };
+
   const handleStockBlur = (index: number, value: string) => {
     if (!value.trim()) return;
     if (index === items.length - 1) {
@@ -502,7 +511,17 @@ const Promos: React.FC = () => {
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50 text-slate-500">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold">Sélection</th>
+                <th className="px-4 py-3 text-left font-semibold">
+                  <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                    />
+                    Sélection
+                  </label>
+                </th>
                 <th className="px-4 py-3 text-left font-semibold">EAN</th>
                 <th className="px-4 py-3 text-left font-semibold">Désignation</th>
                 <th className="px-4 py-3 text-left font-semibold">Type promo</th>
