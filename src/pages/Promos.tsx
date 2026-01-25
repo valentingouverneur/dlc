@@ -117,8 +117,8 @@ const Promos: React.FC = () => {
         setItems(data.items || [createEmptyItem()]);
         const loadedGroups = data.promoGroups || [];
         setPromoGroups(loadedGroups);
-        // Initialiser expandedGroups avec tous les groupes
-        setExpandedGroups(new Set(loadedGroups.map((g) => g.id)));
+        // Les groupes sont fermés par défaut
+        setExpandedGroups(new Set());
       } catch (error) {
         console.error('Erreur chargement catalogue:', error);
       } finally {
@@ -674,7 +674,7 @@ const Promos: React.FC = () => {
                           ) : (
                             <div className="h-9 w-9 rounded-md border border-dashed border-slate-200 bg-slate-50" />
                           )}
-                          <span className="text-xs font-semibold text-blue-700">
+                          <span className="text-xs font-semibold text-slate-900">
                             {group?.name || 'Groupe'} ({groupItems.length} article{groupItems.length > 1 ? 's' : ''})
                           </span>
                         </div>
@@ -984,7 +984,7 @@ const Promos: React.FC = () => {
                           ) : (
                             <div className="h-8 w-8 rounded border border-dashed border-slate-200 bg-slate-50" />
                           )}
-                          <span className="text-xs font-semibold text-blue-700">
+                          <span className="text-xs font-semibold text-slate-900">
                             {group?.name || 'Groupe'} ({groupItems.length})
                           </span>
                         </div>
