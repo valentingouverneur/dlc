@@ -73,6 +73,18 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
           <span className="text-xs font-medium">DLC</span>
         </Link>
 
+        <Link
+          to="/dashboard"
+          className={`flex flex-col items-center justify-center flex-1 h-full no-underline ${
+            isActive('/dashboard') ? '!text-[#6F73F3]' : '!text-gray-600'
+          }`}
+        >
+          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 12h6.5M3.75 6.75h6.5M3.75 17.25h6.5M14.25 6.75h6M14.25 12h6M14.25 17.25h6" />
+          </svg>
+          <span className="text-xs font-medium">Dashboard</span>
+        </Link>
+
         {/* Scanner - Bouton central avec code-barres (design original) - Plus grand */}
         <button
           onClick={onScannerClick}

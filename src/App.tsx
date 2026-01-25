@@ -34,8 +34,8 @@ function App() {
         <div className="md:pl-72 pb-20 md:pb-0 w-full max-w-full overflow-x-hidden">
           <div className="w-full px-2 sm:px-4 py-8 max-w-full min-w-0">
             <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/calendar" element={<Calendar key={refreshKey} />} />
+              <Route path="/" element={<Calendar key={refreshKey} />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/product/:id" element={<ProductDetails />} />
               <Route path="/affiches" element={<Affiches key={refreshKey} />} />
               <Route path="/promos" element={<PromosCalendar />} />

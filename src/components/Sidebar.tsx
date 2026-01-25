@@ -96,6 +96,14 @@ const Sidebar: React.FC = () => {
             </Link>
           </li>
           <li className="px-3">
+            <Link to="/dashboard" className={`${itemBase} ${isActive('/dashboard') ? itemActive : ''}`} aria-current={isActive('/dashboard') ? 'page' : undefined}>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h6.5M3.75 6.75h6.5M3.75 17.25h6.5M14.25 6.75h6M14.25 12h6M14.25 17.25h6" />
+              </svg>
+              <span className="text-sm">Dashboard</span>
+            </Link>
+          </li>
+          <li className="px-3">
             <Link to="/affiches" className={`${itemBase} ${isActive('/affiches') ? itemActive : ''}`} aria-current={isActive('/affiches') ? 'page' : undefined}>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
