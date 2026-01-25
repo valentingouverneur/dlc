@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import { Html5Qrcode } from 'html5-qrcode';
 import { addDoc, collection, doc, getDocs, limit, orderBy, query, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Link } from 'react-router-dom';
 import { ImageSearchService } from '../services/ImageSearchService';
+import Modal from '../components/Modal';
+import PromoScanner from '../components/PromoScanner';
 
 type PromoItem = {
   id: string;
@@ -73,22 +74,15 @@ const Promos: React.FC = () => {
   const [promoName, setPromoName] = useState('');
   const [promoTg, setPromoTg] = useState('TG1');
 
-  const [isMobile, setIsMobile] = useState(false);
-  const [mobileLoading, setMobileLoading] = useState(false);
   const [catalogSaving, setCatalogSaving] = useState(false);
   const [catalogSaveMessage, setCatalogSaveMessage] = useState('');
   const [catalogId, setCatalogId] = useState<string | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [scanMessage, setScanMessage] = useState('');
   const [autoSaveStatus, setAutoSaveStatus] = useState('');
   const [eanWarning, setEanWarning] = useState('');
-  const [scanSessionEans, setScanSessionEans] = useState<Set<string>>(new Set());
   const [refreshingImages, setRefreshingImages] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState('');
 
-  const scannerRef = useRef<Html5Qrcode | null>(null);
-  const lastScanRef = useRef<{ ean: string; at: number }>({ ean: '', at: 0 });
-  const scanLockRef = useRef(false);
   const isLoadingCatalogRef = useRef(false);
   const autoSaveTimerRef = useRef<number | null>(null);
 
@@ -99,13 +93,6 @@ const Promos: React.FC = () => {
     return items.some((item) => item.ean.trim() === eanValue && item.id !== excludeId);
   };
 
-  useEffect(() => {
-    const query = window.matchMedia('(max-width: 768px)');
-    const update = () => setIsMobile(query.matches);
-    update();
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
 
   useEffect(() => {
     const loadLatestCatalog = async () => {
@@ -252,135 +239,30 @@ const Promos: React.FC = () => {
     setPromoTg('TG1');
   };
 
-  const handleMobileScan = useCallback(async (decodedText: string) => {
-    if (!/^\d{13}$/.test(decodedText)) {
+  // Gérer l'ajout d'un produit scanné
+  const handleProductScanned = (ean: string, designation: string, imageUrl: string) => {
+    const cleaned = normalizeEan(ean);
+    if (!cleaned || !/^\d{13}$/.test(cleaned)) {
+      setEanWarning('EAN invalide');
+      setTimeout(() => setEanWarning(''), 2000);
       return;
     }
     
-    const now = Date.now();
-    // Vérifier le lock AVANT tout traitement
-    if (scanLockRef.current) {
-      return;
-    }
-    // Vérifier les doublons AVANT le lock
-    if (scanSessionEans.has(decodedText)) {
-      setScanMessage('EAN déjà scanné.');
-      setTimeout(() => setScanMessage(''), 1500);
-      return;
-    }
-    if (isDuplicateEan(decodedText)) {
-      setScanMessage('EAN déjà ajouté.');
-      setTimeout(() => setScanMessage(''), 1500);
-      return;
-    }
-    // Vérifier le dernier scan
-    if (lastScanRef.current.ean === decodedText && now - lastScanRef.current.at < 5000) {
+    if (isDuplicateEan(cleaned)) {
+      setEanWarning(`EAN déjà ajouté: ${cleaned}`);
+      setTimeout(() => setEanWarning(''), 2000);
       return;
     }
     
-    // Mettre le lock IMMÉDIATEMENT pour éviter les scans multiples
-    scanLockRef.current = true;
-    lastScanRef.current = { ean: decodedText, at: now };
-    
-    // ARRÊTER ET NETTOYER LE SCANNER IMMÉDIATEMENT (comme dans AfficheScanner)
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        scannerRef.current.clear();
-        scannerRef.current = null;
-      } catch (error) {
-        console.error('Erreur arrêt scanner:', error);
-      }
-    }
-    
-    // Fermer le scanner (change l'état pour masquer l'interface)
-    setIsScannerOpen(false);
-    setMobileLoading(true);
-    
-    try {
-      const data = await fetchOpenFoodData(decodedText);
-      const newItem: PromoItem = {
-        ...createEmptyItem(),
-        ean: decodedText,
-        designation: data?.designation || '',
-        imageUrl: data?.imageUrl || ''
-      };
-      setItems((prev) => [...prev, newItem]);
-      setScanSessionEans((prev) => new Set(prev).add(decodedText));
-      setScanMessage('Produit ajouté avec succès.');
-      setTimeout(() => setScanMessage(''), 1500);
-    } catch (error) {
-      console.error('Erreur lors du scan:', error);
-      setScanMessage('Erreur lors de l\'ajout.');
-      setTimeout(() => setScanMessage(''), 1500);
-    } finally {
-      setMobileLoading(false);
-      // Libérer le lock après un délai
-      window.setTimeout(() => {
-        scanLockRef.current = false;
-      }, 3000);
-    }
-  }, [fetchOpenFoodData, isDuplicateEan, scanSessionEans]);
-
-  useEffect(() => {
-    // Ne rien faire si pas mobile ou scanner fermé
-    if (!isMobile || !isScannerOpen) {
-      return;
-    }
-
-    // Démarrer le scanner seulement si ouvert et mobile
-    let html5Qr: Html5Qrcode | null = null;
-    const startScanner = async () => {
-      try {
-        html5Qr = new Html5Qrcode('promo-barcode-scanner');
-        scannerRef.current = html5Qr;
-        await html5Qr.start(
-          { facingMode: 'environment' },
-          {
-            fps: 10,
-            qrbox: { width: 260, height: 260 },
-            aspectRatio: 1.777,
-            disableFlip: true,
-            videoConstraints: {
-              facingMode: 'environment',
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            }
-          },
-          handleMobileScan,
-          () => undefined
-        );
-      } catch (error) {
-        console.error('Erreur démarrage scanner:', error);
-        if (html5Qr) {
-          try {
-            await html5Qr.stop();
-          } catch (e) {
-            // Ignorer les erreurs d'arrêt
-          }
-          html5Qr.clear();
-          scannerRef.current = null;
-        }
-      }
+    const newItem: PromoItem = {
+      ...createEmptyItem(),
+      ean: cleaned,
+      designation: designation || '',
+      imageUrl: imageUrl || ''
     };
     
-    startScanner();
-    
-    // Fonction de nettoyage
-    return () => {
-      if (html5Qr && scannerRef.current === html5Qr) {
-        html5Qr
-          .stop()
-          .catch(() => undefined)
-          .finally(() => {
-            html5Qr?.clear();
-            if (scannerRef.current === html5Qr) {
-              scannerRef.current = null;
-            }
-          });
-      }
-    };
-  }, [handleMobileScan, isMobile, isScannerOpen]);
+    setItems((prev) => [...prev, newItem]);
+  };
 
   const removeSelectedItems = () => {
     if (selectedIds.size === 0) return;
@@ -617,6 +499,12 @@ const Promos: React.FC = () => {
               </svg>
             </button>
             <button
+              onClick={() => setIsScannerOpen(true)}
+              className="rounded-lg bg-[#6F73F3] px-3 py-2 text-sm font-medium text-white hover:bg-[#5F64EE]"
+            >
+              Scanner
+            </button>
+            <button
               onClick={addRow}
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
@@ -754,10 +642,7 @@ const Promos: React.FC = () => {
           {/* Bouton de scan avant la liste sur mobile */}
           <div className="flex gap-2 mb-4">
             <button
-              onClick={() => {
-                setScanSessionEans(new Set());
-                setIsScannerOpen(true);
-              }}
+              onClick={() => setIsScannerOpen(true)}
               className="flex-1 rounded-lg bg-[#6F73F3] px-3 py-2 text-sm font-medium text-white hover:bg-[#5F64EE]"
             >
               Scanner un produit
@@ -923,63 +808,16 @@ const Promos: React.FC = () => {
       </section>
 
 
-      {isScannerOpen && (
-        <div className="fixed inset-0 z-50 bg-black">
-          <style>{`
-            #promo-barcode-scanner {
-              position: absolute;
-              inset: 0;
-              width: 100%;
-              height: 100%;
-            }
-            #promo-barcode-scanner video {
-              width: 100% !important;
-              height: 100% !important;
-              object-fit: cover;
-            }
-            #promo-barcode-scanner__dashboard,
-            #promo-barcode-scanner__header_message,
-            #promo-barcode-scanner__scan_region img {
-              display: none !important;
-            }
-          `}</style>
-          <div className="absolute top-4 left-4 right-4 flex items-center justify-between text-white z-10">
-            <div className="text-sm">Scanner un code-barres</div>
-            <button
-              onClick={async () => {
-                if (scannerRef.current) {
-                  try {
-                    await scannerRef.current.stop();
-                    scannerRef.current.clear();
-                    scannerRef.current = null;
-                  } catch (error) {
-                    console.error('Erreur arrêt scanner:', error);
-                  }
-                }
-                setIsScannerOpen(false);
-                setScanMessage('');
-              }}
-              className="h-9 w-9 rounded-full border border-white/40 text-lg leading-none hover:bg-white/20"
-              aria-label="Fermer"
-            >
-              ×
-            </button>
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div id="promo-barcode-scanner" className="w-full h-full" />
-          </div>
-          {mobileLoading && (
-            <div className="absolute bottom-6 left-4 right-4 rounded-lg bg-white/90 px-3 py-2 text-xs text-slate-900 z-10">
-              Récupération des infos produit...
-            </div>
-          )}
-          {scanMessage && (
-            <div className="absolute bottom-6 left-4 right-4 rounded-lg bg-emerald-500/90 px-3 py-2 text-xs text-white z-10">
-              {scanMessage}
-            </div>
-          )}
-        </div>
-      )}
+      <Modal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        title="Scanner un produit"
+      >
+        <PromoScanner 
+          onClose={() => setIsScannerOpen(false)} 
+          onProductScanned={handleProductScanned}
+        />
+      </Modal>
     </div>
   );
 };
