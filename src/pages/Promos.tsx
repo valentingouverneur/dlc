@@ -637,7 +637,8 @@ const Promos: React.FC = () => {
                 const group = promoGroups.find((g) => g.id === groupId);
                 const isExpanded = expandedGroups.has(groupId);
                 const groupItems = [main, ...others];
-                const groupIndex = items.findIndex((i) => i.id === main.id);
+                // Trouver la première image disponible dans le groupe
+                const groupImage = groupItems.find((item) => item.imageUrl)?.imageUrl || null;
 
                 return (
                   <React.Fragment key={groupId}>
@@ -666,55 +667,21 @@ const Promos: React.FC = () => {
                           />
                         </div>
                       </td>
-                      <td className="px-4 py-3" colSpan={7}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-blue-700">
-                            {group?.name || 'Groupe'} ({groupItems.length} article{groupItems.length > 1 ? 's' : ''})
-                          </span>
-                          {main.isMain && (
-                            <span className="text-xs px-2 py-0.5 bg-blue-200 text-blue-800 rounded">MAIN</span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                    {/* Ligne du produit main */}
-                    <tr key={main.id} className="bg-blue-50/50 hover:bg-blue-100/50">
                       <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(main.id)}
-                          onChange={() => toggleSelected(main.id)}
-                          className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          value={main.ean}
-                          onChange={(event) => {
-                            const digits = normalizeEan(event.target.value);
-                            updateItem(main.id, { ean: digits });
-                            if (digits.length === 13) {
-                              handleEanLookup(main.id, digits);
-                            }
-                          }}
-                          onBlur={() => handleEanLookup(main.id, main.ean)}
-                          className="w-32 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          placeholder="13 chiffres"
-                        />
+                        <span className="text-xs font-semibold text-blue-700">
+                          {group?.name || 'Groupe'} ({groupItems.length})
+                        </span>
                       </td>
                       <td className="px-4 py-3 min-w-[220px]">
                         <div className="flex items-center gap-3">
-                          {main.imageUrl ? (
-                            <img src={main.imageUrl} alt="" className="h-9 w-9 rounded-md border object-contain" />
+                          {groupImage ? (
+                            <img src={groupImage} alt="" className="h-9 w-9 rounded-md border object-contain" />
                           ) : (
                             <div className="h-9 w-9 rounded-md border border-dashed border-slate-200 bg-slate-50" />
                           )}
-                          <input
-                            value={main.designation}
-                            onChange={(event) => updateItem(main.id, { designation: event.target.value })}
-                            className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
-                            placeholder="Nom du produit"
-                          />
+                          <span className="text-xs font-semibold text-blue-700">
+                            {group?.name || 'Groupe'}
+                          </span>
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -735,55 +702,24 @@ const Promos: React.FC = () => {
                           ))}
                         </select>
                       </td>
-                      <td className="px-4 py-3">
-                        <input
-                          value={main.priceBuy}
-                          onChange={(event) => updateItem(main.id, { priceBuy: event.target.value })}
-                          className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          placeholder="P3N"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          value={main.priceSell}
-                          onChange={(event) => updateItem(main.id, { priceSell: event.target.value })}
-                          className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          placeholder="PVH"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          value={main.margin}
-                          onChange={(event) =>
-                            updateItem(main.id, { margin: event.target.value, marginLocked: true })
-                          }
-                          className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          placeholder="%"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          value={main.stock}
-                          onChange={(event) => updateItem(main.id, { stock: event.target.value })}
-                          onBlur={(event) => handleStockBlur(groupIndex, event.target.value)}
-                          className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          placeholder="UVC"
-                        />
-                      </td>
+                      <td className="px-4 py-3" colSpan={4}></td>
                     </tr>
-                    {/* Lignes des autres produits du groupe (si expanded) */}
+                    {/* Tous les produits du groupe dans la dropdown (y compris le main) */}
                     {isExpanded &&
-                      others.map((item) => {
+                      groupItems.map((item) => {
                         const itemIndex = items.findIndex((i) => i.id === item.id);
+                        const isMainItem = item.id === main.id;
                         return (
-                          <tr key={item.id} className="bg-slate-50/50 hover:bg-slate-100/50">
+                          <tr key={item.id} className={`${isMainItem ? 'bg-blue-50/50' : 'bg-slate-50/50'} hover:bg-slate-100/50`}>
                             <td className="px-4 py-3">
-                              <input
-                                type="checkbox"
-                                checked={selectedIds.has(item.id)}
-                                onChange={() => toggleSelected(item.id)}
-                                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
-                              />
+                              <div className="flex items-center gap-2 pl-6">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.has(item.id)}
+                                  onChange={() => toggleSelected(item.id)}
+                                  className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                                />
+                              </div>
                             </td>
                             <td className="px-4 py-3">
                               <input
@@ -807,12 +743,17 @@ const Promos: React.FC = () => {
                                 ) : (
                                   <div className="h-9 w-9 rounded-md border border-dashed border-slate-200 bg-slate-50" />
                                 )}
-                                <input
-                                  value={item.designation}
-                                  onChange={(event) => updateItem(item.id, { designation: event.target.value })}
-                                  className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
-                                  placeholder="Nom du produit"
-                                />
+                                <div className="flex items-center gap-2 flex-1">
+                                  <input
+                                    value={item.designation}
+                                    onChange={(event) => updateItem(item.id, { designation: event.target.value })}
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                                    placeholder="Nom du produit"
+                                  />
+                                  {isMainItem && (
+                                    <span className="text-xs px-2 py-0.5 bg-blue-200 text-blue-800 rounded whitespace-nowrap">MAIN</span>
+                                  )}
+                                </div>
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -820,6 +761,7 @@ const Promos: React.FC = () => {
                                 value={item.promoType}
                                 onChange={(event) => updateItem(item.id, { promoType: event.target.value })}
                                 className="w-40 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                                disabled={isMainItem}
                               >
                                 <option value="">Choisir</option>
                                 {promoTypes.map((type) => (
@@ -1012,7 +954,8 @@ const Promos: React.FC = () => {
                 const group = promoGroups.find((g) => g.id === groupId);
                 const isExpanded = expandedGroups.has(groupId);
                 const groupItems = [main, ...others];
-                const groupIndex = items.findIndex((i) => i.id === main.id);
+                // Trouver la première image disponible dans le groupe
+                const groupImage = groupItems.find((item) => item.imageUrl)?.imageUrl || null;
 
                 return (
                   <React.Fragment key={groupId}>
@@ -1041,56 +984,22 @@ const Promos: React.FC = () => {
                           />
                         </div>
                       </td>
-                      <td className="px-2 py-2" colSpan={8}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-blue-700">
-                            {group?.name || 'Groupe'} ({groupItems.length})
-                          </span>
-                          {main.isMain && (
-                            <span className="text-xs px-1.5 py-0.5 bg-blue-200 text-blue-800 rounded">MAIN</span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                    {/* Ligne du produit main */}
-                    <tr key={main.id} className="bg-blue-50/50">
                       <td className="px-2 py-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(main.id)}
-                          onChange={() => toggleSelected(main.id)}
-                          className="h-3 w-3 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
-                        />
+                        <span className="text-xs font-semibold text-blue-700">
+                          {group?.name || 'Groupe'} ({groupItems.length})
+                        </span>
                       </td>
                       <td className="px-2 py-2">
-                        <input
-                          value={main.ean}
-                          onChange={(event) => {
-                            const digits = normalizeEan(event.target.value);
-                            updateItem(main.id, { ean: digits });
-                            if (digits.length === 13) {
-                              handleEanLookup(main.id, digits);
-                            }
-                          }}
-                          onBlur={() => handleEanLookup(main.id, main.ean)}
-                          className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          placeholder="EAN"
-                        />
-                      </td>
-                      <td className="px-2 py-2">
-                        {main.imageUrl ? (
-                          <img src={main.imageUrl} alt="" className="h-8 w-8 rounded border object-contain" />
+                        {groupImage ? (
+                          <img src={groupImage} alt="" className="h-8 w-8 rounded border object-contain" />
                         ) : (
                           <div className="h-8 w-8 rounded border border-dashed border-slate-200 bg-slate-50" />
                         )}
                       </td>
                       <td className="px-2 py-2 min-w-[120px]">
-                        <input
-                          value={main.designation}
-                          onChange={(event) => updateItem(main.id, { designation: event.target.value })}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          placeholder="Désignation"
-                        />
+                        <span className="text-xs font-semibold text-blue-700">
+                          {group?.name || 'Groupe'}
+                        </span>
                       </td>
                       <td className="px-2 py-2">
                         <select
@@ -1110,40 +1019,109 @@ const Promos: React.FC = () => {
                           ))}
                         </select>
                       </td>
-                      <td className="px-2 py-2">
-                        <input
-                          value={main.priceBuy}
-                          onChange={(event) => updateItem(main.id, { priceBuy: event.target.value })}
-                          className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          placeholder="P3N"
-                        />
-                      </td>
-                      <td className="px-2 py-2">
-                        <input
-                          value={main.priceSell}
-                          onChange={(event) => updateItem(main.id, { priceSell: event.target.value })}
-                          className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          placeholder="PVH"
-                        />
-                      </td>
-                      <td className="px-2 py-2">
-                        <input
-                          value={main.margin}
-                          onChange={(event) => updateItem(main.id, { margin: event.target.value, marginLocked: true })}
-                          className="w-14 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          placeholder="%"
-                        />
-                      </td>
-                      <td className="px-2 py-2">
-                        <input
-                          value={main.stock}
-                          onChange={(event) => updateItem(main.id, { stock: event.target.value })}
-                          onBlur={(event) => handleStockBlur(groupIndex, event.target.value)}
-                          className="w-14 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          placeholder="UVC"
-                        />
-                      </td>
+                      <td className="px-2 py-2" colSpan={4}></td>
                     </tr>
+                    {/* Tous les produits du groupe dans la dropdown (y compris le main) */}
+                    {isExpanded &&
+                      groupItems.map((item) => {
+                        const itemIndex = items.findIndex((i) => i.id === item.id);
+                        const isMainItem = item.id === main.id;
+                        return (
+                          <tr key={item.id} className={`${isMainItem ? 'bg-blue-50/50' : 'bg-slate-50/50'}`}>
+                            <td className="px-2 py-2">
+                              <div className="flex items-center gap-1 pl-4">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.has(item.id)}
+                                  onChange={() => toggleSelected(item.id)}
+                                  className="h-3 w-3 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                                />
+                              </div>
+                            </td>
+                            <td className="px-2 py-2">
+                              <input
+                                value={item.ean}
+                                onChange={(event) => {
+                                  const digits = normalizeEan(event.target.value);
+                                  updateItem(item.id, { ean: digits });
+                                  if (digits.length === 13) {
+                                    handleEanLookup(item.id, digits);
+                                  }
+                                }}
+                                onBlur={() => handleEanLookup(item.id, item.ean)}
+                                className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                                placeholder="EAN"
+                              />
+                            </td>
+                            <td className="px-2 py-2">
+                              {item.imageUrl ? (
+                                <img src={item.imageUrl} alt="" className="h-8 w-8 rounded border object-contain" />
+                              ) : (
+                                <div className="h-8 w-8 rounded border border-dashed border-slate-200 bg-slate-50" />
+                              )}
+                            </td>
+                            <td className="px-2 py-2 min-w-[120px]">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  value={item.designation}
+                                  onChange={(event) => updateItem(item.id, { designation: event.target.value })}
+                                  className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                                  placeholder="Désignation"
+                                />
+                                {isMainItem && (
+                                  <span className="text-xs px-1.5 py-0.5 bg-blue-200 text-blue-800 rounded whitespace-nowrap">MAIN</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-2 py-2">
+                              <select
+                                value={item.promoType}
+                                onChange={(event) => updateItem(item.id, { promoType: event.target.value })}
+                                className="w-28 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                                disabled={isMainItem}
+                              >
+                                <option value="">-</option>
+                                {promoTypes.map((type) => (
+                                  <option key={type} value={type}>
+                                    {type}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-2 py-2">
+                              <input
+                                value={item.priceBuy}
+                                onChange={(event) => updateItem(item.id, { priceBuy: event.target.value })}
+                                className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                                placeholder="P3N"
+                              />
+                            </td>
+                            <td className="px-2 py-2">
+                              <input
+                                value={item.priceSell}
+                                onChange={(event) => updateItem(item.id, { priceSell: event.target.value })}
+                                className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                                placeholder="PVH"
+                              />
+                            </td>
+                            <td className="px-2 py-2">
+                              <input
+                                value={item.margin}
+                                onChange={(event) => updateItem(item.id, { margin: event.target.value, marginLocked: true })}
+                                className="w-14 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                                placeholder="%"
+                              />
+                            </td>
+                            <td className="px-2 py-2">
+                              <input
+                                value={item.stock}
+                                onChange={(event) => updateItem(item.id, { stock: event.target.value })}
+                                onBlur={(event) => handleStockBlur(itemIndex, event.target.value)}
+                                className="w-14 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                                placeholder="UVC"
+                              />
+                            </td>
+                          </tr>
                     {/* Lignes des autres produits du groupe (si expanded) */}
                     {isExpanded &&
                       others.map((item) => {
