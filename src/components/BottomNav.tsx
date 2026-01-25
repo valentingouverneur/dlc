@@ -60,6 +60,18 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
       <div className="bg-white rounded-t-3xl border-t border-gray-200 shadow-lg">
         <div className="flex items-center justify-around h-16 px-2 pb-2">
+        <Link
+          to="/"
+          className={`flex flex-col items-center justify-center flex-1 h-full no-underline ${
+            isActive('/') ? '!text-[#6F73F3]' : '!text-gray-600'
+          }`}
+        >
+          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 12h6.5M3.75 6.75h6.5M3.75 17.25h6.5M14.25 6.75h6M14.25 12h6M14.25 17.25h6" />
+          </svg>
+          <span className="text-xs font-medium">Dashboard</span>
+        </Link>
+
         {/* DLC - Page */}
         <Link
           to="/dlc"
@@ -71,18 +83,6 @@ const BottomNav: React.FC<BottomNavProps> = ({ onScannerClick }) => {
             <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
           </svg>
           <span className="text-xs font-medium">DLC</span>
-        </Link>
-
-        <Link
-          to="/"
-          className={`flex flex-col items-center justify-center flex-1 h-full no-underline ${
-            isActive('/') ? '!text-[#6F73F3]' : '!text-gray-600'
-          }`}
-        >
-          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 12h6.5M3.75 6.75h6.5M3.75 17.25h6.5M14.25 6.75h6M14.25 12h6M14.25 17.25h6" />
-          </svg>
-          <span className="text-xs font-medium">Dashboard</span>
         </Link>
 
         {/* Scanner - Bouton central avec code-barres (design original) - Plus grand */}
