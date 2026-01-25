@@ -92,7 +92,7 @@ const Promos: React.FC = () => {
   const isLoadingCatalogRef = useRef(false);
   const autoSaveTimerRef = useRef<number | null>(null);
 
-  const normalizeEan = (value: string) => value.trim();
+  const normalizeEan = (value: string) => value.replace(/\D/g, '');
   const isDuplicateEan = (value: string, excludeId?: string) => {
     const eanValue = normalizeEan(value);
     if (!eanValue) return false;
@@ -173,14 +173,14 @@ const Promos: React.FC = () => {
         window.setTimeout(() => setEanWarning(''), 1800);
         return;
       }
-      const data = await fetchOpenFoodData(ean);
+      const data = await fetchOpenFoodData(cleaned);
       if (!data) {
         return;
       }
       setItems((prev) =>
         prev.map((item) =>
           item.id === id
-            ? { ...item, designation: data.designation || item.designation, imageUrl: data.imageUrl || item.imageUrl }
+            ? { ...item, ean: cleaned, designation: data.designation || item.designation, imageUrl: data.imageUrl || item.imageUrl }
             : item
         )
       );
@@ -548,7 +548,7 @@ const Promos: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {items.map((item, index) => (
+          {items.map((item, index) => (
                 <tr key={item.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <input
@@ -561,7 +561,13 @@ const Promos: React.FC = () => {
                   <td className="px-4 py-3">
                     <input
                       value={item.ean}
-                      onChange={(event) => updateItem(item.id, { ean: event.target.value })}
+                      onChange={(event) => {
+                        const digits = normalizeEan(event.target.value);
+                        updateItem(item.id, { ean: digits });
+                        if (digits.length === 13) {
+                          handleEanLookup(item.id, digits);
+                        }
+                      }}
                       onBlur={() => handleEanLookup(item.id, item.ean)}
                       className="w-32 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
                       placeholder="13 chiffres"
@@ -649,7 +655,13 @@ const Promos: React.FC = () => {
                 <div className="flex-1 space-y-2">
                   <input
                     value={item.ean}
-                    onChange={(event) => updateItem(item.id, { ean: event.target.value })}
+                    onChange={(event) => {
+                      const digits = normalizeEan(event.target.value);
+                      updateItem(item.id, { ean: digits });
+                      if (digits.length === 13) {
+                        handleEanLookup(item.id, digits);
+                      }
+                    }}
                     onBlur={() => handleEanLookup(item.id, item.ean)}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
                     placeholder="EAN"
@@ -813,7 +825,13 @@ const Promos: React.FC = () => {
           <div className="space-y-3">
             <input
               value={mobileItem.ean}
-              onChange={(event) => setMobileItem((prev) => ({ ...prev, ean: event.target.value }))}
+              onChange={(event) => {
+                const digits = normalizeEan(event.target.value);
+                setMobileItem((prev) => ({ ...prev, ean: digits }));
+                if (digits.length === 13) {
+                  handleEanLookup(mobileItem.id, digits);
+                }
+              }}
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
               placeholder="EAN"
             />
