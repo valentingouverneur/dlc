@@ -85,6 +85,8 @@ const Promos: React.FC = () => {
   const [autoSaveStatus, setAutoSaveStatus] = useState('');
   const [eanWarning, setEanWarning] = useState('');
   const [scanSessionEans, setScanSessionEans] = useState<Set<string>>(new Set());
+  const [refreshingImages, setRefreshingImages] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState('');
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const lastScanRef = useRef<{ ean: string; at: number }>({ ean: '', at: 0 });
@@ -158,6 +160,20 @@ const Promos: React.FC = () => {
     } catch (error) {
       console.warn('Open Food Facts error', error);
       return null;
+    }
+  }, []);
+
+  const fetchOpenFoodDesignation = useCallback(async (barcode: string) => {
+    try {
+      const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+      if (response.data.status === 1 && response.data.product) {
+        const product = response.data.product;
+        return product.product_name_fr || product.product_name || product.generic_name || '';
+      }
+      return '';
+    } catch (error) {
+      console.warn('Open Food Facts name error', error);
+      return '';
     }
   }, []);
 
@@ -353,6 +369,38 @@ const Promos: React.FC = () => {
     }
   };
 
+  const refreshImages = async () => {
+    if (refreshingImages) return;
+    setRefreshingImages(true);
+    setRefreshMessage('');
+    try {
+      const updated = [...items];
+      for (let i = 0; i < updated.length; i += 1) {
+        const item = updated[i];
+        if (!item.ean || item.imageUrl) continue;
+        if (!/^\d{13}$/.test(item.ean)) continue;
+        let designation = item.designation;
+        if (!designation) {
+          designation = await fetchOpenFoodDesignation(item.ean);
+          updated[i] = { ...updated[i], designation };
+        }
+        const imageUrl = await ImageSearchService.searchImage(item.ean, designation);
+        if (imageUrl) {
+          updated[i] = { ...updated[i], imageUrl };
+          setItems([...updated]);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      }
+      setRefreshMessage('Actualisation terminée.');
+    } catch (error) {
+      console.error('Erreur actualisation images:', error);
+      setRefreshMessage('Erreur lors de l’actualisation.');
+    } finally {
+      setRefreshingImages(false);
+      window.setTimeout(() => setRefreshMessage(''), 2000);
+    }
+  };
+
   const saveCatalog = async (showMessage: boolean) => {
     if (!catalogName.trim()) {
       if (showMessage) {
@@ -446,6 +494,13 @@ const Promos: React.FC = () => {
               Importer un fichier
             </button>
             <button
+              onClick={refreshImages}
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+              disabled={refreshingImages}
+            >
+              {refreshingImages ? 'Actualisation…' : 'Actualiser les photos'}
+            </button>
+            <button
               onClick={handleSaveCatalog}
               className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
               disabled={catalogSaving}
@@ -484,9 +539,9 @@ const Promos: React.FC = () => {
             />
           </div>
         </div>
-        {(catalogSaveMessage || autoSaveStatus || eanWarning) && (
+        {(catalogSaveMessage || autoSaveStatus || eanWarning || refreshMessage) && (
           <div className="mt-3 text-sm text-slate-600">
-            {catalogSaveMessage || autoSaveStatus || eanWarning}
+            {catalogSaveMessage || autoSaveStatus || eanWarning || refreshMessage}
           </div>
         )}
       </header>
