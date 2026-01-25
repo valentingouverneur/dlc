@@ -84,6 +84,7 @@ const Promos: React.FC = () => {
   const [scanMessage, setScanMessage] = useState('');
   const [autoSaveStatus, setAutoSaveStatus] = useState('');
   const [eanWarning, setEanWarning] = useState('');
+  const [scanSessionEans, setScanSessionEans] = useState<Set<string>>(new Set());
 
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const lastScanRef = useRef<{ ean: string; at: number }>({ ean: '', at: 0 });
@@ -235,6 +236,11 @@ const Promos: React.FC = () => {
     if (!/^\d{13}$/.test(decodedText)) {
       return;
     }
+    if (scanSessionEans.has(decodedText)) {
+      setScanMessage('EAN déjà scanné.');
+      setTimeout(() => setScanMessage(''), 1500);
+      return;
+    }
     if (isDuplicateEan(decodedText)) {
       setScanMessage('EAN déjà ajouté.');
       setTimeout(() => setScanMessage(''), 1500);
@@ -258,13 +264,14 @@ const Promos: React.FC = () => {
       imageUrl: data?.imageUrl || ''
     };
     setItems((prev) => [...prev, newItem]);
+    setScanSessionEans((prev) => new Set(prev).add(decodedText));
     setMobileLoading(false);
     setScanMessage('Produit ajouté avec succès.');
     setTimeout(() => setScanMessage(''), 1500);
     window.setTimeout(() => {
       scanLockRef.current = false;
     }, 2500);
-  }, [fetchOpenFoodData]);
+  }, [fetchOpenFoodData, isDuplicateEan, scanSessionEans]);
 
   useEffect(() => {
     if (!isMobile || !isScannerOpen) return;
@@ -290,14 +297,28 @@ const Promos: React.FC = () => {
 
   const addMobileItem = () => {
     const cleaned = normalizeEan(mobileItem.ean);
+    if (cleaned && scanSessionEans.has(cleaned)) {
+      setEanWarning(`EAN déjà scanné: ${cleaned}`);
+      window.setTimeout(() => setEanWarning(''), 1800);
+      return;
+    }
     if (cleaned && isDuplicateEan(cleaned)) {
       setEanWarning(`EAN déjà ajouté: ${cleaned}`);
       window.setTimeout(() => setEanWarning(''), 1800);
       return;
     }
     setItems((prev) => [...prev, { ...mobileItem, id: crypto.randomUUID() }]);
+    if (cleaned) {
+      setScanSessionEans((prev) => new Set(prev).add(cleaned));
+    }
     setMobileItem(createEmptyItem());
     setMobileStep('form');
+  };
+
+  const removeSelectedItems = () => {
+    if (selectedIds.size === 0) return;
+    setItems((prev) => prev.filter((item) => !selectedIds.has(item.id)));
+    setSelectedIds(new Set());
   };
 
   const handleStockBlur = (index: number, value: string) => {
@@ -452,6 +473,17 @@ const Promos: React.FC = () => {
             <p className="text-sm text-slate-500">Saisie EAN → auto-remplissage • promo + prix + stock</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              onClick={removeSelectedItems}
+              className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+              disabled={selectedIds.size === 0}
+              aria-label="Supprimer les articles sélectionnés"
+              title="Supprimer les articles sélectionnés"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M9 6V4h6v2m-8 4v6m4-6v6m4-6v6M5 6l1 14h12l1-14" />
+              </svg>
+            </button>
             <button
               onClick={addRow}
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -726,7 +758,10 @@ const Promos: React.FC = () => {
 
         <div className="flex gap-2">
           <button
-            onClick={() => setIsScannerOpen(true)}
+            onClick={() => {
+              setScanSessionEans(new Set());
+              setIsScannerOpen(true);
+            }}
             className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white"
           >
             Scanner
