@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import { addDoc, collection } from 'firebase/firestore';
+import { db } from '../config/firebase';
 import { ImageSearchService } from '../services/ImageSearchService';
 
 type PromoItem = {
@@ -74,6 +76,8 @@ const Promos: React.FC = () => {
   const [mobileStep, setMobileStep] = useState<'scan' | 'form'>('scan');
   const [mobileItem, setMobileItem] = useState<PromoItem>(createEmptyItem());
   const [mobileLoading, setMobileLoading] = useState(false);
+  const [catalogSaving, setCatalogSaving] = useState(false);
+  const [catalogSaveMessage, setCatalogSaveMessage] = useState('');
 
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
@@ -215,6 +219,38 @@ const Promos: React.FC = () => {
     setMobileStep(keepScanning ? 'scan' : 'form');
   };
 
+  const handleStockBlur = (index: number, value: string) => {
+    if (!value.trim()) return;
+    if (index === items.length - 1) {
+      addRow();
+    }
+  };
+
+  const handleSaveCatalog = async () => {
+    if (!catalogName.trim()) {
+      setCatalogSaveMessage('Nom de catalogue obligatoire.');
+      return;
+    }
+    setCatalogSaving(true);
+    setCatalogSaveMessage('');
+    try {
+      await addDoc(collection(db, 'promoCatalogs'), {
+        name: catalogName.trim(),
+        startDate: catalogStart,
+        endDate: catalogEnd,
+        items,
+        promoGroups,
+        createdAt: new Date().toISOString()
+      });
+      setCatalogSaveMessage('Catalogue enregistré.');
+    } catch (error) {
+      console.error('Erreur enregistrement catalogue:', error);
+      setCatalogSaveMessage('Erreur lors de l’enregistrement.');
+    } finally {
+      setCatalogSaving(false);
+    }
+  };
+
   const selectedCount = selectedIds.size;
   const selectedItems = useMemo(() => items.filter((item) => selectedIds.has(item.id)), [items, selectedIds]);
 
@@ -230,8 +266,12 @@ const Promos: React.FC = () => {
             <button className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
               Importer un fichier
             </button>
-            <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
-              Enregistrer le catalogue
+            <button
+              onClick={handleSaveCatalog}
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+              disabled={catalogSaving}
+            >
+              {catalogSaving ? 'Enregistrement...' : 'Enregistrer le catalogue'}
             </button>
           </div>
         </div>
@@ -265,6 +305,9 @@ const Promos: React.FC = () => {
             />
           </div>
         </div>
+        {catalogSaveMessage && (
+          <div className="mt-3 text-sm text-slate-600">{catalogSaveMessage}</div>
+        )}
       </header>
 
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm">
@@ -303,7 +346,7 @@ const Promos: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {items.map((item) => (
+              {items.map((item, index) => (
                 <tr key={item.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <input
@@ -381,6 +424,7 @@ const Promos: React.FC = () => {
                     <input
                       value={item.stock}
                       onChange={(event) => updateItem(item.id, { stock: event.target.value })}
+                      onBlur={(event) => handleStockBlur(index, event.target.value)}
                       className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
                       placeholder="UVC"
                     />
