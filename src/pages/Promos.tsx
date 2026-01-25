@@ -667,11 +667,7 @@ const Promos: React.FC = () => {
                           />
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs font-semibold text-blue-700">
-                          {group?.name || 'Groupe'} ({groupItems.length})
-                        </span>
-                      </td>
+                      <td className="px-4 py-3"></td>
                       <td className="px-4 py-3 min-w-[220px]">
                         <div className="flex items-center gap-3">
                           {groupImage ? (
@@ -680,7 +676,7 @@ const Promos: React.FC = () => {
                             <div className="h-9 w-9 rounded-md border border-dashed border-slate-200 bg-slate-50" />
                           )}
                           <span className="text-xs font-semibold text-blue-700">
-                            {group?.name || 'Groupe'}
+                            {group?.name || 'Groupe'} ({groupItems.length} article{groupItems.length > 1 ? 's' : ''})
                           </span>
                         </div>
                       </td>
@@ -702,7 +698,10 @@ const Promos: React.FC = () => {
                           ))}
                         </select>
                       </td>
-                      <td className="px-4 py-3" colSpan={4}></td>
+                      <td className="px-4 py-3"></td>
+                      <td className="px-4 py-3"></td>
+                      <td className="px-4 py-3"></td>
+                      <td className="px-4 py-3"></td>
                     </tr>
                     {/* Tous les produits du groupe dans la dropdown (y compris le main) */}
                     {isExpanded &&
@@ -984,11 +983,7 @@ const Promos: React.FC = () => {
                           />
                         </div>
                       </td>
-                      <td className="px-2 py-2">
-                        <span className="text-xs font-semibold text-blue-700">
-                          {group?.name || 'Groupe'} ({groupItems.length})
-                        </span>
-                      </td>
+                      <td className="px-2 py-2"></td>
                       <td className="px-2 py-2">
                         {groupImage ? (
                           <img src={groupImage} alt="" className="h-8 w-8 rounded border object-contain" />
@@ -998,7 +993,7 @@ const Promos: React.FC = () => {
                       </td>
                       <td className="px-2 py-2 min-w-[120px]">
                         <span className="text-xs font-semibold text-blue-700">
-                          {group?.name || 'Groupe'}
+                          {group?.name || 'Groupe'} ({groupItems.length})
                         </span>
                       </td>
                       <td className="px-2 py-2">
@@ -1019,7 +1014,10 @@ const Promos: React.FC = () => {
                           ))}
                         </select>
                       </td>
-                      <td className="px-2 py-2" colSpan={4}></td>
+                      <td className="px-2 py-2"></td>
+                      <td className="px-2 py-2"></td>
+                      <td className="px-2 py-2"></td>
+                      <td className="px-2 py-2"></td>
                     </tr>
                     {/* Tous les produits du groupe dans la dropdown (y compris le main) */}
                     {isExpanded &&
