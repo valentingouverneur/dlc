@@ -1,467 +1,648 @@
-import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc, where, orderBy } from 'firebase/firestore';
-import { db } from '../config/firebase';
-import { Promo } from '../types/Promo';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Calendar } from '@/components/ui/calendar';
-import { BarChart, DonutChart } from '@tremor/react';
-import { Search, Filter, Calendar as CalendarIcon, TrendingUp, Package, Upload } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import axios from 'axios';
+import { Html5QrcodeScanner } from 'html5-qrcode';
+import { ImageSearchService } from '../services/ImageSearchService';
+
+type PromoItem = {
+  id: string;
+  ean: string;
+  designation: string;
+  imageUrl: string;
+  promoType: string;
+  priceBuy: string;
+  priceSell: string;
+  margin: string;
+  marginLocked: boolean;
+  stock: string;
+};
+
+type PromoGroup = {
+  id: string;
+  name: string;
+  tg: string;
+  items: PromoItem[];
+};
+
+const promoTypes = [
+  'Réduction immédiate',
+  '-34%',
+  '-68% 2e moins cher',
+  '2e à -60%',
+  'Lot x2',
+  'Ticket',
+  'Autre'
+];
+
+const tgOptions = ['TG1', 'TG2', 'TG3', 'TG4', 'TG5', 'TG6', 'TG7', 'TG8', 'TG9'];
+
+const createEmptyItem = (): PromoItem => ({
+  id: crypto.randomUUID(),
+  ean: '',
+  designation: '',
+  imageUrl: '',
+  promoType: '',
+  priceBuy: '',
+  priceSell: '',
+  margin: '',
+  marginLocked: false,
+  stock: ''
+});
+
+const computeMargin = (priceBuy: string, priceSell: string) => {
+  const buy = parseFloat(priceBuy.replace(',', '.'));
+  const sell = parseFloat(priceSell.replace(',', '.'));
+  if (!Number.isFinite(buy) || !Number.isFinite(sell) || sell <= 0) {
+    return '';
+  }
+  const margin = ((sell - buy) / sell) * 100;
+  return `${Math.round(margin * 10) / 10}`;
+};
 
 const Promos: React.FC = () => {
-  const [promos, setPromos] = useState<Promo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [viewMode, setViewMode] = useState<'current' | 'upcoming' | 'history' | 'all'>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [catalogName, setCatalogName] = useState('Dépenser Moins 1');
+  const [catalogStart, setCatalogStart] = useState('2026-01-27');
+  const [catalogEnd, setCatalogEnd] = useState('2026-02-08');
+
+  const [items, setItems] = useState<PromoItem[]>([createEmptyItem()]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [promoGroups, setPromoGroups] = useState<PromoGroup[]>([]);
+
+  const [promoName, setPromoName] = useState('');
+  const [promoTg, setPromoTg] = useState('TG1');
+
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileStep, setMobileStep] = useState<'scan' | 'form'>('scan');
+  const [mobileItem, setMobileItem] = useState<PromoItem>(createEmptyItem());
+  const [mobileLoading, setMobileLoading] = useState(false);
+
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'promos'),
-      orderBy('dateDebut', 'desc')
-    );
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const promosData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Promo[];
-      console.log('📊 Promos chargées:', promosData.length);
-      console.log('📊 Exemple de promo:', promosData[0]);
-      setPromos(promosData);
-      setLoading(false);
-    }, (error) => {
-      console.error('❌ Erreur lors du chargement des promos:', error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    const query = window.matchMedia('(max-width: 768px)');
+    const update = () => setIsMobile(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
   }, []);
 
-  // Filtrer les promos selon le mode de vue
-  const getFilteredPromos = () => {
-    let filtered = promos;
-
-    // Filtre par mode de vue
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (viewMode === 'current') {
-      filtered = filtered.filter(promo => {
-        if (!promo.dateDebut || !promo.dateFin) return false;
-        const debut = new Date(promo.dateDebut);
-        const fin = new Date(promo.dateFin);
-        return debut <= today && fin >= today;
-      });
-    } else if (viewMode === 'upcoming') {
-      filtered = filtered.filter(promo => {
-        if (!promo.dateDebut) return false;
-        const debut = new Date(promo.dateDebut);
-        return debut > today;
-      });
-    } else if (viewMode === 'history') {
-      filtered = filtered.filter(promo => {
-        if (!promo.dateFin) return false;
-        const fin = new Date(promo.dateFin);
-        return fin < today;
-      });
+  const fetchOpenFoodData = useCallback(async (barcode: string) => {
+    try {
+      const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+      if (response.data.status === 1 && response.data.product) {
+        const product = response.data.product;
+        const designation = product.product_name_fr || product.product_name || product.generic_name || '';
+        const googleImage = await ImageSearchService.searchImage(barcode, designation);
+        return {
+          designation,
+          imageUrl: googleImage || ''
+        };
+      }
+      const googleImage = await ImageSearchService.searchImage(barcode);
+      return {
+        designation: '',
+        imageUrl: googleImage || ''
+      };
+    } catch (error) {
+      console.warn('Open Food Facts error', error);
+      return null;
     }
-    // 'all' mode : pas de filtre par date
+  }, []);
 
-    // Filtre par recherche
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(promo =>
-        promo.designation?.toLowerCase().includes(term) ||
-        promo.ean?.includes(term) ||
-        promo.fournisseur?.toLowerCase().includes(term)
+  const handleEanLookup = useCallback(
+    async (id: string, ean: string) => {
+      if (!/^\d{13}$/.test(ean)) {
+        return;
+      }
+      const data = await fetchOpenFoodData(ean);
+      if (!data) {
+        return;
+      }
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? { ...item, designation: data.designation || item.designation, imageUrl: data.imageUrl || item.imageUrl }
+            : item
+        )
       );
-    }
+    },
+    [fetchOpenFoodData]
+  );
 
-    // Filtre par catégorie
-    if (selectedCategory) {
-      filtered = filtered.filter(promo => promo.activite?.includes(selectedCategory));
-    }
-
-    // Filtre par date sélectionnée
-    if (selectedDate) {
-      filtered = filtered.filter(promo => {
-        if (!promo.dateDebut || !promo.dateFin) return false;
-        const debut = new Date(promo.dateDebut);
-        const fin = new Date(promo.dateFin);
-        const selected = new Date(selectedDate);
-        return selected >= debut && selected <= fin;
-      });
-    }
-
-    return filtered;
+  const updateItem = (id: string, updates: Partial<PromoItem>) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const next = { ...item, ...updates };
+        if (!next.marginLocked && (updates.priceBuy !== undefined || updates.priceSell !== undefined)) {
+          next.margin = computeMargin(next.priceBuy, next.priceSell);
+        }
+        return next;
+      })
+    );
   };
 
-  const filteredPromos = getFilteredPromos();
+  const addRow = () => setItems((prev) => [...prev, createEmptyItem()]);
 
-  // Statistiques
-  const totalPromos = filteredPromos.length;
-  const totalValue = filteredPromos.reduce((sum, promo) => sum + (promo.srpTTC || 0), 0);
-  const avgDiscount = filteredPromos
-    .filter(p => p.promoValue)
-    .reduce((sum, promo) => {
-      const discount = parseFloat(promo.promoValue?.replace('%', '') || '0');
-      return sum + discount;
-    }, 0) / filteredPromos.filter(p => p.promoValue).length || 0;
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
-  // Données pour les graphiques
-  const chartData = filteredPromos.slice(0, 10).map(promo => ({
-    name: promo.designation?.substring(0, 20) || 'Produit',
-    value: promo.srpTTC || 0,
-    discount: parseFloat(promo.promoValue?.replace('%', '') || '0'),
-  }));
+  const createPromoGroup = () => {
+    if (!promoName || selectedIds.size === 0) return;
+    const selectedItems = items.filter((item) => selectedIds.has(item.id));
+    setPromoGroups((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        name: promoName,
+        tg: promoTg,
+        items: selectedItems
+      }
+    ]);
+    setSelectedIds(new Set());
+    setPromoName('');
+    setPromoTg('TG1');
+  };
 
-  // Catégories uniques
-  const categories = Array.from(new Set(promos.map(p => p.activite).filter(Boolean)));
+  const handleMobileScan = useCallback(async (decodedText: string) => {
+    if (!/^\d{13}$/.test(decodedText)) {
+      return;
+    }
+    setMobileLoading(true);
+    const data = await fetchOpenFoodData(decodedText);
+    setMobileItem((prev) => ({
+      ...prev,
+      ean: decodedText,
+      designation: data?.designation || prev.designation,
+      imageUrl: data?.imageUrl || prev.imageUrl
+    }));
+    setMobileLoading(false);
+    setMobileStep('form');
+    if (scannerRef.current) {
+      scannerRef.current.clear();
+      scannerRef.current = null;
+    }
+  }, [fetchOpenFoodData]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!isMobile || mobileStep !== 'scan') return;
+    const config = {
+      fps: 10,
+      qrbox: { width: 240, height: 240 },
+      aspectRatio: 1.0
+    };
+    scannerRef.current = new Html5QrcodeScanner('promo-barcode-scanner', config, false);
+    scannerRef.current.render(handleMobileScan, () => undefined);
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.clear();
+        scannerRef.current = null;
+      }
+    };
+  }, [handleMobileScan, isMobile, mobileStep]);
+
+  const addMobileItem = (keepScanning: boolean) => {
+    setItems((prev) => [...prev, { ...mobileItem, id: crypto.randomUUID() }]);
+    setMobileItem(createEmptyItem());
+    setMobileStep(keepScanning ? 'scan' : 'form');
+  };
+
+  const selectedCount = selectedIds.size;
+  const selectedItems = useMemo(() => items.filter((item) => selectedIds.has(item.id)), [items, selectedIds]);
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Promotions</h1>
-          <p className="text-sm text-gray-500 mt-1">Gestion des promotions en cours et à venir</p>
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Link to="/promos/import">
-            <Button variant="outline" className="w-full sm:w-auto">
-              <Upload className="w-4 h-4 mr-2" />
-              Importer
-            </Button>
-          </Link>
-          <Button className="w-full sm:w-auto">
-            <Package className="w-4 h-4 mr-2" />
-            Nouvelle promotion
-          </Button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Promos actives</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalPromos}</div>
-            <p className="text-xs text-muted-foreground">
-              {viewMode === 'current' ? 'En cours' : viewMode === 'upcoming' ? 'À venir' : 'Historique'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valeur totale</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalValue.toFixed(2)} €</div>
-            <p className="text-xs text-muted-foreground">Prix de vente total</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Réduction moyenne</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{avgDiscount.toFixed(0)}%</div>
-            <p className="text-xs text-muted-foreground">Sur les promos avec réduction</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filtres</CardTitle>
-          <CardDescription>Rechercher et filtrer les promotions</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Tabs pour les modes de vue */}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={viewMode === 'all' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('all')}
-            >
-              Toutes
-            </Button>
-            <Button
-              variant={viewMode === 'current' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('current')}
-            >
-              En cours
-            </Button>
-            <Button
-              variant={viewMode === 'upcoming' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('upcoming')}
-            >
-              À venir
-            </Button>
-            <Button
-              variant={viewMode === 'history' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('history')}
-            >
-              Historique
-            </Button>
+    <div className="w-full max-w-6xl mx-auto space-y-6">
+      <header className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900">Saisie des promotions</h1>
+            <p className="text-sm text-slate-500">Catalogue défini avant saisie • regroupement en promos ensuite</p>
           </div>
+          <div className="flex flex-wrap gap-2">
+            <button className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              Importer un fichier
+            </button>
+            <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+              Enregistrer le catalogue
+            </button>
+          </div>
+        </div>
 
-          {/* Recherche */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Rechercher par désignation, EAN ou fournisseur..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+        <div className="mt-5 grid gap-4 md:grid-cols-3">
+          <div>
+            <label className="text-xs font-semibold text-slate-500">Catalogue</label>
+            <input
+              value={catalogName}
+              onChange={(event) => setCatalogName(event.target.value)}
+              className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              placeholder="Nom du catalogue"
             />
           </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-500">Début (mardi)</label>
+            <input
+              type="date"
+              value={catalogStart}
+              onChange={(event) => setCatalogStart(event.target.value)}
+              className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-500">Fin (lundi)</label>
+            <input
+              type="date"
+              value={catalogEnd}
+              onChange={(event) => setCatalogEnd(event.target.value)}
+              className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+            />
+          </div>
+        </div>
+      </header>
 
-          {/* Filtres supplémentaires */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Catégorie</label>
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-slate-200 p-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Tableur des articles</h2>
+            <p className="text-sm text-slate-500">Saisie EAN → auto-remplissage • promo + prix + stock</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={addRow}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Ajouter une ligne
+            </button>
+            <button
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Coller une liste
+            </button>
+          </div>
+        </div>
+
+        <div className="hidden md:block overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50 text-slate-500">
+              <tr>
+                <th className="px-4 py-3 text-left font-semibold">Sélection</th>
+                <th className="px-4 py-3 text-left font-semibold">EAN</th>
+                <th className="px-4 py-3 text-left font-semibold">Désignation</th>
+                <th className="px-4 py-3 text-left font-semibold">Type promo</th>
+                <th className="px-4 py-3 text-left font-semibold">P3N</th>
+                <th className="px-4 py-3 text-left font-semibold">PVH</th>
+                <th className="px-4 py-3 text-left font-semibold">Marge %</th>
+                <th className="px-4 py-3 text-left font-semibold">Stock</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {items.map((item) => (
+                <tr key={item.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(item.id)}
+                      onChange={() => toggleSelected(item.id)}
+                      className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      value={item.ean}
+                      onChange={(event) => updateItem(item.id, { ean: event.target.value })}
+                      onBlur={() => handleEanLookup(item.id, item.ean)}
+                      className="w-32 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="13 chiffres"
+                    />
+                  </td>
+                  <td className="px-4 py-3 min-w-[220px]">
+                    <div className="flex items-center gap-3">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt="" className="h-9 w-9 rounded-md border object-contain" />
+                      ) : (
+                        <div className="h-9 w-9 rounded-md border border-dashed border-slate-200 bg-slate-50" />
+                      )}
+                      <input
+                        value={item.designation}
+                        onChange={(event) => updateItem(item.id, { designation: event.target.value })}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        placeholder="Nom du produit"
+                      />
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={item.promoType}
+                      onChange={(event) => updateItem(item.id, { promoType: event.target.value })}
+                      className="w-40 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    >
+                      <option value="">Choisir</option>
+                      {promoTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      value={item.priceBuy}
+                      onChange={(event) => updateItem(item.id, { priceBuy: event.target.value })}
+                      className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="P3N"
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      value={item.priceSell}
+                      onChange={(event) => updateItem(item.id, { priceSell: event.target.value })}
+                      className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="PVH"
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      value={item.margin}
+                      onChange={(event) =>
+                        updateItem(item.id, { margin: event.target.value, marginLocked: true })
+                      }
+                      className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="%"
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      value={item.stock}
+                      onChange={(event) => updateItem(item.id, { stock: event.target.value })}
+                      className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="UVC"
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="md:hidden space-y-3 p-4">
+          {items.map((item) => (
+            <div key={item.id} className="rounded-xl border border-slate-200 p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                {item.imageUrl ? (
+                  <img src={item.imageUrl} alt="" className="h-12 w-12 rounded-lg border object-contain" />
+                ) : (
+                  <div className="h-12 w-12 rounded-lg border border-dashed border-slate-200 bg-slate-50" />
+                )}
+                <div className="flex-1 space-y-2">
+                  <input
+                    value={item.ean}
+                    onChange={(event) => updateItem(item.id, { ean: event.target.value })}
+                    onBlur={() => handleEanLookup(item.id, item.ean)}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                    placeholder="EAN"
+                  />
+                  <input
+                    value={item.designation}
+                    onChange={(event) => updateItem(item.id, { designation: event.target.value })}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                    placeholder="Désignation"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  value={item.priceBuy}
+                  onChange={(event) => updateItem(item.id, { priceBuy: event.target.value })}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                  placeholder="P3N"
+                />
+                <input
+                  value={item.priceSell}
+                  onChange={(event) => updateItem(item.id, { priceSell: event.target.value })}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                  placeholder="PVH"
+                />
+                <input
+                  value={item.margin}
+                  onChange={(event) => updateItem(item.id, { margin: event.target.value, marginLocked: true })}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                  placeholder="Marge %"
+                />
+                <input
+                  value={item.stock}
+                  onChange={(event) => updateItem(item.id, { stock: event.target.value })}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                  placeholder="Stock"
+                />
+              </div>
               <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                value={item.promoType}
+                onChange={(event) => updateItem(item.id, { promoType: event.target.value })}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
               >
-                <option value="">Toutes les catégories</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
+                <option value="">Type promo</option>
+                {promoTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
                 ))}
               </select>
+              <button
+                onClick={() => toggleSelected(item.id)}
+                className={`w-full rounded-lg px-3 py-2 text-xs font-medium ${
+                  selectedIds.has(item.id)
+                    ? 'bg-slate-900 text-white'
+                    : 'border border-slate-200 bg-white text-slate-700'
+                }`}
+              >
+                {selectedIds.has(item.id) ? 'Sélectionné' : 'Sélectionner pour promo'}
+              </button>
             </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block">Date</label>
-              <div className="space-y-2">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal"
-                  onClick={() => {
-                    if (selectedDate) {
-                      setSelectedDate(undefined);
-                    } else {
-                      setSelectedDate(new Date());
-                    }
-                  }}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? selectedDate.toLocaleDateString('fr-FR') : "Toutes les dates"}
-                </Button>
-                {selectedDate && (
-                  <div className="mt-2">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
-                      className="rounded-md border"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full mt-2"
-                      onClick={() => setSelectedDate(undefined)}
-                    >
-                      Effacer le filtre
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Graphiques - Masqués sur mobile pour économiser l'espace */}
-      {filteredPromos.length > 0 && (
-        <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Top 10 produits</CardTitle>
-              <CardDescription>Prix de vente par produit</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <BarChart
-                data={chartData}
-                index="name"
-                categories={["value"]}
-                colors={["blue"]}
-                yAxisWidth={60}
-                showLegend={false}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Réductions</CardTitle>
-              <CardDescription>Distribution des réductions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DonutChart
-                data={chartData.filter(d => d.discount > 0)}
-                category="discount"
-                index="name"
-                colors={["blue", "cyan", "indigo", "violet"]}
-              />
-            </CardContent>
-          </Card>
+          ))}
         </div>
-      )}
+      </section>
 
-      {/* Liste des promos */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Liste des promotions ({filteredPromos.length})</CardTitle>
-          <CardDescription>
-            {viewMode === 'all' && 'Toutes les promotions'}
-            {viewMode === 'current' && 'Promotions actuellement en cours'}
-            {viewMode === 'upcoming' && 'Promotions à venir'}
-            {viewMode === 'history' && 'Historique des promotions'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {filteredPromos.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Aucune promotion trouvée</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredPromos.map((promo) => (
-                <Card key={promo.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex flex-col sm:flex-row gap-4">
-                      {/* Image */}
-                      {promo.imageUrl && (
-                        <div className="flex-shrink-0">
-                          <img
-                            src={promo.imageUrl}
-                            alt={promo.designation}
-                            className="w-20 h-20 sm:w-24 sm:h-24 object-contain rounded-lg border"
-                          />
-                        </div>
-                      )}
-
-                      {/* Informations principales */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col gap-2">
-                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-base sm:text-lg mb-1 truncate">{promo.designation}</h3>
-                              <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-gray-600 mb-2">
-                                {promo.ean && (
-                                  <span className="font-mono break-all">EAN: {promo.ean}</span>
-                                )}
-                                {promo.fournisseur && (
-                                  <span className="break-all">• {promo.fournisseur}</span>
-                                )}
-                              </div>
-
-                              {/* Dates */}
-                              {promo.dateDebut && promo.dateFin && (
-                                <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500 mb-2">
-                                  <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                                  <span className="break-words">
-                                    {new Date(promo.dateDebut).toLocaleDateString('fr-FR')} - {new Date(promo.dateFin).toLocaleDateString('fr-FR')}
-                                  </span>
-                                </div>
-                              )}
-
-                              {/* Prix */}
-                              <div className="flex flex-wrap gap-3 sm:gap-4 text-xs sm:text-sm">
-                                {promo.srpTTC && (
-                                  <div>
-                                    <span className="text-gray-500">Prix TTC: </span>
-                                    <span className="font-semibold">{promo.srpTTC.toFixed(2)} €</span>
-                                  </div>
-                                )}
-                                {promo.pvh && (
-                                  <div>
-                                    <span className="text-gray-500">PVH: </span>
-                                    <span className="font-semibold">{promo.pvh.toFixed(2)} €</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Badge promotion */}
-                            {promo.promoType && (
-                              <div className="flex-shrink-0">
-                                <div className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
-                                  promo.promoIcon === 'rouge' ? 'bg-red-100 text-red-800' :
-                                  promo.promoIcon === 'bleu' ? 'bg-blue-100 text-blue-800' :
-                                  promo.promoIcon === 'jaune' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-green-100 text-green-800'
-                                }`}>
-                                  {promo.promoType}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Informations supplémentaires */}
-                          <div className="mt-3 pt-3 border-t grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-500">
-                            {promo.activite && (
-                              <div className="break-words">
-                                <span className="font-medium">Activité: </span>
-                                <span>{promo.activite}</span>
-                              </div>
-                            )}
-                            {promo.commande && (
-                              <div>
-                                <span className="font-medium">Commande: </span>
-                                <span>{promo.commande}</span>
-                              </div>
-                            )}
-                            {promo.qteUVC && (
-                              <div>
-                                <span className="font-medium">Quantité: </span>
-                                <span>{promo.qteUVC} UVC</span>
-                              </div>
-                            )}
-                            {promo.liv && (
-                              <div>
-                                <span className="font-medium">Livraison: </span>
-                                <span>{promo.liv}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+      <section className="grid gap-6 md:grid-cols-3">
+        <div className="md:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <h3 className="text-lg font-semibold text-slate-900">Créer une promo avec la sélection</h3>
+          <p className="text-sm text-slate-500">Sélection actuelle : {selectedCount} article(s)</p>
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <input
+              value={promoName}
+              onChange={(event) => setPromoName(event.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              placeholder="Nom de la promo"
+            />
+            <select
+              value={promoTg}
+              onChange={(event) => setPromoTg(event.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+            >
+              {tgOptions.map((tg) => (
+                <option key={tg} value={tg}>
+                  {tg}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={createPromoGroup}
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              disabled={!promoName || selectedCount === 0}
+            >
+              Créer la promo
+            </button>
+          </div>
+          {selectedItems.length > 0 && (
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {selectedItems.map((item) => (
+                <div key={item.id} className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                  {item.imageUrl ? (
+                    <img src={item.imageUrl} alt="" className="h-9 w-9 rounded-md border object-contain" />
+                  ) : (
+                    <div className="h-9 w-9 rounded-md border border-dashed border-slate-200 bg-slate-50" />
+                  )}
+                  <div className="min-w-0">
+                    <div className="font-medium text-slate-900 truncate">{item.designation || 'Produit sans nom'}</div>
+                    <div className="text-xs text-slate-500">{item.ean}</div>
+                  </div>
+                </div>
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+          <h3 className="text-lg font-semibold text-slate-900">Promos créées</h3>
+          {promoGroups.length === 0 ? (
+            <p className="text-sm text-slate-500">Aucune promo créée pour l'instant.</p>
+          ) : (
+            promoGroups.map((group) => (
+              <div key={group.id} className="rounded-xl border border-slate-200 p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="font-medium">{group.name}</div>
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-xs">{group.tg}</span>
+                </div>
+                <div className="text-xs text-slate-500">
+                  {catalogName} • {catalogStart} → {catalogEnd}
+                </div>
+                <div className="text-xs text-slate-600">{group.items.length} article(s)</div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      <section className="md:hidden bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <h3 className="text-lg font-semibold text-slate-900">Saisie mobile (scan rapide)</h3>
+        <p className="text-sm text-slate-500">Créer le catalogue, scanner un EAN, saisir prix/stock, enregistrer.</p>
+
+        {mobileStep === 'scan' && (
+          <div className="space-y-4">
+            <div id="promo-barcode-scanner" className="w-full max-w-md mx-auto" />
+            <button
+              onClick={() => setMobileStep('form')}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
+            >
+              Saisir manuellement
+            </button>
+          </div>
+        )}
+
+        {mobileStep === 'form' && (
+          <div className="space-y-3">
+            {mobileLoading && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                Récupération des infos produit...
+              </div>
+            )}
+            <input
+              value={mobileItem.ean}
+              onChange={(event) => setMobileItem((prev) => ({ ...prev, ean: event.target.value }))}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+              placeholder="EAN"
+            />
+            <input
+              value={mobileItem.designation}
+              onChange={(event) => setMobileItem((prev) => ({ ...prev, designation: event.target.value }))}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+              placeholder="Désignation"
+            />
+            <select
+              value={mobileItem.promoType}
+              onChange={(event) => setMobileItem((prev) => ({ ...prev, promoType: event.target.value }))}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+            >
+              <option value="">Type promo</option>
+              {promoTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                value={mobileItem.priceBuy}
+                onChange={(event) =>
+                  setMobileItem((prev) => ({
+                    ...prev,
+                    priceBuy: event.target.value,
+                    margin: prev.marginLocked ? prev.margin : computeMargin(event.target.value, prev.priceSell)
+                  }))
+                }
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                placeholder="P3N"
+              />
+              <input
+                value={mobileItem.priceSell}
+                onChange={(event) =>
+                  setMobileItem((prev) => ({
+                    ...prev,
+                    priceSell: event.target.value,
+                    margin: prev.marginLocked ? prev.margin : computeMargin(prev.priceBuy, event.target.value)
+                  }))
+                }
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                placeholder="PVH"
+              />
+              <input
+                value={mobileItem.margin}
+                onChange={(event) =>
+                  setMobileItem((prev) => ({ ...prev, margin: event.target.value, marginLocked: true }))
+                }
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                placeholder="Marge %"
+              />
+              <input
+                value={mobileItem.stock}
+                onChange={(event) => setMobileItem((prev) => ({ ...prev, stock: event.target.value }))}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                placeholder="Stock"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => addMobileItem(false)}
+                className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white"
+              >
+                Enregistrer
+              </button>
+              <button
+                onClick={() => addMobileItem(true)}
+                className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
+              >
+                + Scanner un autre
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   );
 };
