@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { addDoc, collection, doc, getDocs, limit, orderBy, query, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Link } from 'react-router-dom';
@@ -86,7 +86,7 @@ const Promos: React.FC = () => {
   const [eanWarning, setEanWarning] = useState('');
   const [scanSessionEans, setScanSessionEans] = useState<Set<string>>(new Set());
 
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
   const lastScanRef = useRef<{ ean: string; at: number }>({ ean: '', at: 0 });
   const scanLockRef = useRef(false);
   const isLoadingCatalogRef = useRef(false);
@@ -275,23 +275,39 @@ const Promos: React.FC = () => {
 
   useEffect(() => {
     if (!isMobile || !isScannerOpen) return;
-    const config = {
-      fps: 10,
-      qrbox: { width: 260, height: 260 },
-      aspectRatio: 1.777,
-      videoConstraints: {
-        facingMode: 'environment',
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
+    const html5Qr = new Html5Qrcode('promo-barcode-scanner');
+    scannerRef.current = html5Qr;
+    const startScanner = async () => {
+      try {
+        await html5Qr.start(
+          { facingMode: 'environment' },
+          {
+            fps: 10,
+            qrbox: { width: 260, height: 260 },
+            aspectRatio: 1.777,
+            disableFlip: true,
+            videoConstraints: {
+              facingMode: 'environment',
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          },
+          handleMobileScan,
+          () => undefined
+        );
+      } catch (error) {
+        console.error('Erreur démarrage scanner:', error);
       }
     };
-    scannerRef.current = new Html5QrcodeScanner('promo-barcode-scanner', config, false);
-    scannerRef.current.render(handleMobileScan, () => undefined);
+    startScanner();
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear();
-        scannerRef.current = null;
-      }
+      html5Qr
+        .stop()
+        .catch(() => undefined)
+        .finally(() => {
+          html5Qr.clear();
+          scannerRef.current = null;
+        });
     };
   }, [handleMobileScan, isMobile, isScannerOpen]);
 
@@ -883,8 +899,10 @@ const Promos: React.FC = () => {
               height: 100% !important;
               object-fit: cover;
             }
+            #promo-barcode-scanner__dashboard,
+            #promo-barcode-scanner__header_message,
             #promo-barcode-scanner__scan_region img {
-              display: none;
+              display: none !important;
             }
           `}</style>
           <div className="absolute top-4 left-4 right-4 flex items-center justify-between text-white">
