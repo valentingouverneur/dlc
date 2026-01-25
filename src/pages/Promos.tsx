@@ -28,13 +28,10 @@ type PromoGroup = {
 };
 
 const promoTypes = [
-  'Réduction immédiate',
-  '-34%',
-  '-68% 2e moins cher',
-  '2e à -60%',
-  'Lot x2',
-  'Ticket',
-  'Autre'
+  '20% TEL',
+  'BRII30%',
+  'BRII34%',
+  'BRII60%/2E'
 ];
 
 const tgOptions = ['TG1', 'TG2', 'TG3', 'TG4', 'TG5', 'TG6', 'TG7', 'TG8', 'TG9'];
