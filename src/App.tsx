@@ -31,7 +31,7 @@ function App() {
         <Sidebar />
         
         {/* Contenu principal avec marge pour le sidebar */}
-        <div className="md:ml-72 pb-20 md:pb-0 w-full max-w-full overflow-x-hidden">
+        <div className="md:pl-72 pb-20 md:pb-0 w-full max-w-full overflow-x-hidden">
           <div className="w-full px-2 sm:px-4 py-8 max-w-full min-w-0">
             <Routes>
               <Route path="/" element={<Calendar key={refreshKey} />} />
