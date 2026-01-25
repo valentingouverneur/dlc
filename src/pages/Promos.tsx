@@ -667,8 +667,7 @@ const Promos: React.FC = () => {
                           />
                         </div>
                       </td>
-                      <td className="px-4 py-3"></td>
-                      <td className="px-4 py-3 min-w-[220px]">
+                      <td className="px-4 py-3 min-w-[220px]" colSpan={2}>
                         <div className="flex items-center gap-3">
                           {groupImage ? (
                             <img src={groupImage} alt="" className="h-9 w-9 rounded-md border object-contain" />
@@ -742,17 +741,12 @@ const Promos: React.FC = () => {
                                 ) : (
                                   <div className="h-9 w-9 rounded-md border border-dashed border-slate-200 bg-slate-50" />
                                 )}
-                                <div className="flex items-center gap-2 flex-1">
-                                  <input
-                                    value={item.designation}
-                                    onChange={(event) => updateItem(item.id, { designation: event.target.value })}
-                                    className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
-                                    placeholder="Nom du produit"
-                                  />
-                                  {isMainItem && (
-                                    <span className="text-xs px-2 py-0.5 bg-blue-200 text-blue-800 rounded whitespace-nowrap">MAIN</span>
-                                  )}
-                                </div>
+                                <input
+                                  value={item.designation}
+                                  onChange={(event) => updateItem(item.id, { designation: event.target.value })}
+                                  className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                                  placeholder="Nom du produit"
+                                />
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -983,18 +977,17 @@ const Promos: React.FC = () => {
                           />
                         </div>
                       </td>
-                      <td className="px-2 py-2"></td>
-                      <td className="px-2 py-2">
-                        {groupImage ? (
-                          <img src={groupImage} alt="" className="h-8 w-8 rounded border object-contain" />
-                        ) : (
-                          <div className="h-8 w-8 rounded border border-dashed border-slate-200 bg-slate-50" />
-                        )}
-                      </td>
-                      <td className="px-2 py-2 min-w-[120px]">
-                        <span className="text-xs font-semibold text-blue-700">
-                          {group?.name || 'Groupe'} ({groupItems.length})
-                        </span>
+                      <td className="px-2 py-2" colSpan={2}>
+                        <div className="flex items-center gap-2">
+                          {groupImage ? (
+                            <img src={groupImage} alt="" className="h-8 w-8 rounded border object-contain" />
+                          ) : (
+                            <div className="h-8 w-8 rounded border border-dashed border-slate-200 bg-slate-50" />
+                          )}
+                          <span className="text-xs font-semibold text-blue-700">
+                            {group?.name || 'Groupe'} ({groupItems.length})
+                          </span>
+                        </div>
                       </td>
                       <td className="px-2 py-2">
                         <select
@@ -1059,17 +1052,12 @@ const Promos: React.FC = () => {
                               )}
                             </td>
                             <td className="px-2 py-2 min-w-[120px]">
-                              <div className="flex items-center gap-2">
-                                <input
-                                  value={item.designation}
-                                  onChange={(event) => updateItem(item.id, { designation: event.target.value })}
-                                  className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
-                                  placeholder="Désignation"
-                                />
-                                {isMainItem && (
-                                  <span className="text-xs px-1.5 py-0.5 bg-blue-200 text-blue-800 rounded whitespace-nowrap">MAIN</span>
-                                )}
-                              </div>
+                              <input
+                                value={item.designation}
+                                onChange={(event) => updateItem(item.id, { designation: event.target.value })}
+                                className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                                placeholder="Désignation"
+                              />
                             </td>
                             <td className="px-2 py-2">
                               <select
