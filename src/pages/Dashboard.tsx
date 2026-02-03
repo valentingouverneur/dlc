@@ -1,5 +1,5 @@
 import React from 'react';
-import { DonutChart } from '@tremor/react';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
 // Données chiffre d'affaire hebdo
 const kpiData = {
@@ -21,28 +21,16 @@ const secteurData = [
   { secteur: 'Entrée', ca: 1585 },
 ];
 
-// Une couleur par catégorie (ordre = ordre des données)
-const secteurCouleurs = [
-  'blue',
-  'cyan',
-  'emerald',
-  'amber',
-  'violet',
-  'rose',
-  'orange',
-  'teal',
-] as const;
-
-// Classes Tailwind pour la légende (pastilles)
-const secteurCouleursLegende = [
-  'bg-blue-500',
-  'bg-cyan-500',
-  'bg-emerald-500',
-  'bg-amber-500',
-  'bg-violet-500',
-  'bg-rose-500',
-  'bg-orange-500',
-  'bg-teal-500',
+// Une couleur hex par catégorie (même ordre que secteurData) pour le camembert et la légende
+const secteurCouleursHex = [
+  '#3b82f6', // blue
+  '#06b6d4', // cyan
+  '#10b981', // emerald
+  '#f59e0b', // amber
+  '#8b5cf6', // violet
+  '#f43f5e', // rose
+  '#f97316', // orange
+  '#14b8a6', // teal
 ];
 
 // Top 10 promo (à remplacer par import top_10_ventes_promos.xlsx)
@@ -172,22 +160,42 @@ const Dashboard: React.FC = () => {
           </button>
         </div>
         <div className="mt-4 flex flex-col items-center">
-          <DonutChart
-            data={secteurData}
-            index="secteur"
-            category="ca"
-            variant="pie"
-            valueFormatter={(v) => formatNumber(v)}
-            colors={[...secteurCouleurs]}
-            showLabel
-            showAnimation
-            className="h-80 w-80"
-          />
+          <div className="h-80 w-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={secteurData}
+                  dataKey="ca"
+                  nameKey="secteur"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius="100%"
+                  innerRadius={0}
+                  paddingAngle={1}
+                  stroke="white"
+                  strokeWidth={1}
+                  isAnimationActive
+                  animationDuration={800}
+                  label={false}
+                >
+                  {secteurData.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={secteurCouleursHex[index]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number) => formatNumber(value)}
+                  contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                  labelFormatter={(label) => label}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
           <div className="mt-6 grid w-full max-w-2xl grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4" role="list" aria-label="Légende secteurs">
             {secteurData.map((row, i) => (
               <div key={row.secteur} className="flex items-center gap-2 text-sm">
                 <span
-                  className={`h-3 w-3 shrink-0 rounded-full ${secteurCouleursLegende[i]}`}
+                  className="h-3 w-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: secteurCouleursHex[i] }}
                   aria-hidden
                 />
                 <span className="text-slate-700">{row.secteur}</span>
