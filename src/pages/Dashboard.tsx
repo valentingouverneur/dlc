@@ -33,6 +33,12 @@ const secteurCouleursHex = [
   '#14b8a6', // teal
 ];
 
+// Petite répartition 70 / 30 (ex : Promo / Hors promo)
+const repartition7030 = [
+  { label: 'Promo', value: 70 },
+  { label: 'Hors promo', value: 30 },
+];
+
 // Top 10 promo (à remplacer par import top_10_ventes_promos.xlsx)
 const top10Promo = [
   { rank: 1, designation: 'Produit promo 1', ventes: '—' },
@@ -202,6 +208,66 @@ const Dashboard: React.FC = () => {
                 <span className="ml-auto font-medium text-slate-900">{formatNumber(row.ca)}</span>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Ligne test : card vide + camembert 70/30 */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Card vide */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="text-sm font-medium text-slate-700">Bloc vide (placeholder)</div>
+          <div className="mt-4 h-40 rounded-xl border border-dashed border-slate-200 bg-slate-50" />
+        </div>
+
+        {/* Camembert 70 / 30 */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-900">Répartition 70 / 30</h2>
+            <span className="text-xs text-slate-500">Exemple visuel</span>
+          </div>
+          <div className="mt-4 flex flex-col items-center">
+            <div className="h-56 w-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={repartition7030}
+                    dataKey="value"
+                    nameKey="label"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius="100%"
+                    innerRadius={0}
+                    paddingAngle={2}
+                    stroke="white"
+                    strokeWidth={1}
+                    isAnimationActive
+                    animationDuration={700}
+                    label={false}
+                  >
+                    <Cell fill="#6366f1" /> {/* 70% */}
+                    <Cell fill="#e5e7eb" /> {/* 30% */}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number) => `${value}%`}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                    labelFormatter={(label) => label}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-4 flex gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full bg-indigo-500" />
+                <span className="text-slate-700">Promo</span>
+                <span className="ml-1 font-medium text-slate-900">70%</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full bg-slate-300" />
+                <span className="text-slate-700">Hors promo</span>
+                <span className="ml-1 font-medium text-slate-900">30%</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
