@@ -21,6 +21,30 @@ const secteurData = [
   { secteur: 'Entrée', ca: 1585 },
 ];
 
+// Une couleur par catégorie (ordre = ordre des données)
+const secteurCouleurs = [
+  'blue',
+  'cyan',
+  'emerald',
+  'amber',
+  'violet',
+  'rose',
+  'orange',
+  'teal',
+] as const;
+
+// Classes Tailwind pour la légende (pastilles)
+const secteurCouleursLegende = [
+  'bg-blue-500',
+  'bg-cyan-500',
+  'bg-emerald-500',
+  'bg-amber-500',
+  'bg-violet-500',
+  'bg-rose-500',
+  'bg-orange-500',
+  'bg-teal-500',
+];
+
 // Top 10 promo (à remplacer par import top_10_ventes_promos.xlsx)
 const top10Promo = [
   { rank: 1, designation: 'Produit promo 1', ventes: '—' },
@@ -147,18 +171,30 @@ const Dashboard: React.FC = () => {
             Filtre
           </button>
         </div>
-        <div className="mt-4 flex justify-center">
+        <div className="mt-4 flex flex-col items-center">
           <DonutChart
             data={secteurData}
             index="secteur"
             category="ca"
             variant="pie"
             valueFormatter={(v) => formatNumber(v)}
-            colors={['blue', 'cyan', 'indigo', 'violet', 'fuchsia', 'pink', 'rose', 'orange']}
+            colors={[...secteurCouleurs]}
             showLabel
             showAnimation
             className="h-80 w-80"
           />
+          <div className="mt-6 grid w-full max-w-2xl grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4" role="list" aria-label="Légende secteurs">
+            {secteurData.map((row, i) => (
+              <div key={row.secteur} className="flex items-center gap-2 text-sm">
+                <span
+                  className={`h-3 w-3 shrink-0 rounded-full ${secteurCouleursLegende[i]}`}
+                  aria-hidden
+                />
+                <span className="text-slate-700">{row.secteur}</span>
+                <span className="ml-auto font-medium text-slate-900">{formatNumber(row.ca)}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
