@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarList } from '@tremor/react';
+import { DonutChart } from '@tremor/react';
 
 // Données chiffre d'affaire hebdo
 const kpiData = {
@@ -9,16 +9,16 @@ const kpiData = {
   panier: { current: 8.58, previous: 8.1 },
 };
 
-// Répartition par secteur (pour BarList: name + value)
+// Répartition par secteur (pour DonutChart: index = libellé, category = valeur)
 const secteurData = [
-  { name: 'Viande', value: 9624 },
-  { name: 'Poisson', value: 8587 },
-  { name: 'Glaces', value: 3938 },
-  { name: 'Légumes', value: 3587 },
-  { name: 'Pizza', value: 3665 },
-  { name: 'Frites', value: 4754 },
-  { name: 'Plats cuisinés', value: 2665 },
-  { name: 'Entrée', value: 1585 },
+  { secteur: 'Viande', ca: 9624 },
+  { secteur: 'Poisson', ca: 8587 },
+  { secteur: 'Glaces', ca: 3938 },
+  { secteur: 'Légumes', ca: 3587 },
+  { secteur: 'Pizza', ca: 3665 },
+  { secteur: 'Frites', ca: 4754 },
+  { secteur: 'Plats cuisinés', ca: 2665 },
+  { secteur: 'Entrée', ca: 1585 },
 ];
 
 // Top 10 promo (à remplacer par import top_10_ventes_promos.xlsx)
@@ -147,13 +147,17 @@ const Dashboard: React.FC = () => {
             Filtre
           </button>
         </div>
-        <div className="mt-4 h-80">
-          <BarList
+        <div className="mt-4 flex justify-center">
+          <DonutChart
             data={secteurData}
-            valueFormatter={(v) => `${formatNumber(v)}`}
-            color="blue"
-            sortOrder="descending"
+            index="secteur"
+            category="ca"
+            variant="pie"
+            valueFormatter={(v) => formatNumber(v)}
+            colors={['blue', 'cyan', 'indigo', 'violet', 'fuchsia', 'pink', 'rose', 'orange']}
+            showLabel
             showAnimation
+            className="h-80 w-80"
           />
         </div>
       </div>
