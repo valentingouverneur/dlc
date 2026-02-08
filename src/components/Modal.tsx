@@ -5,13 +5,16 @@ interface ModalProps {
   onClose: () => void;
   children: React.ReactNode;
   title?: string;
+  size?: 'default' | 'large';
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, size = 'default' }) => {
   if (!isOpen) return null;
 
+  const maxWidthClass = size === 'large' ? 'max-w-3xl' : 'max-w-lg';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Overlay */}
       <div 
         className="fixed inset-0 bg-black bg-opacity-50"
@@ -19,7 +22,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title }) => {
       />
       
       {/* Modal content */}
-      <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
+      <div className={`relative bg-white rounded-lg shadow-xl w-full ${maxWidthClass} mx-4 max-h-[90vh] flex flex-col`}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-xl font-semibold text-gray-800">
@@ -36,7 +39,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title }) => {
         </div>
 
         {/* Body */}
-        <div className="p-4">
+        <div className="p-4 overflow-y-auto flex-1">
           {children}
         </div>
       </div>

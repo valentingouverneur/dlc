@@ -8,6 +8,7 @@ import Affiches from './pages/Affiches';
 import Promos from './pages/Promos';
 import PromosCalendar from './pages/PromosCalendar';
 import ImportPromos from './pages/ImportPromos';
+import Articles from './pages/Articles';
 import TestDashboard from './pages/TestDashboard';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
@@ -41,6 +42,7 @@ function App() {
               <Route path="/promos" element={<PromosCalendar />} />
               <Route path="/promos/manage" element={<Promos />} />
               <Route path="/promos/import" element={<ImportPromos />} />
+              <Route path="/articles" element={<Articles />} />
               <Route path="/test" element={<TestDashboard />} />
             </Routes>
           </div>
