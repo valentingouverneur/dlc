@@ -146,6 +146,12 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
+/* Masquer le curseur clignotant dans les champs de saisie */
+input,
+textarea {
+  caret-color: transparent;
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
