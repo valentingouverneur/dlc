@@ -92,7 +92,11 @@ const Articles: React.FC = () => {
       );
     }
     if (categoryFilter) {
-      list = list.filter((p) => p.category === categoryFilter);
+      if (categoryFilter === '__SANS_CATEGORIE__') {
+        list = list.filter((p) => !p.category?.trim());
+      } else {
+        list = list.filter((p) => p.category === categoryFilter);
+      }
     }
     return list;
   }, [items, searchTerm, categoryFilter]);
@@ -648,6 +652,7 @@ const Articles: React.FC = () => {
           className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
         >
           <option value="">Toutes les catégories</option>
+          <option value="__SANS_CATEGORIE__">Sans catégorie</option>
           {PRODUCT_CATEGORIES.map((c) => (
             <option key={c} value={c}>
               {c}
