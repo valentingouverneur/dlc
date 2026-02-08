@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import axios from 'axios';
 import { collection, query, onSnapshot, deleteDoc, doc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { CatalogProduct } from '../types/CatalogProduct';
@@ -41,6 +42,8 @@ const Articles: React.FC = () => {
   const [editingCell, setEditingCell] = useState<{ ean: string; field: InlineEditField } | null>(null);
   const [editingValue, setEditingValue] = useState('');
   const [fetchingImageEan, setFetchingImageEan] = useState<string | null>(null);
+  const [enrichingOff, setEnrichingOff] = useState(false);
+  const [offProgress, setOffProgress] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'productCatalog'));
@@ -279,6 +282,50 @@ const Articles: React.FC = () => {
     }
   };
 
+  /** Récupère marque et poids depuis Open Food Facts (par EAN). Ne remplit que les champs renvoyés par l’API. */
+  const fetchOffByEan = async (ean: string): Promise<{ brand?: string; weight?: string }> => {
+    try {
+      const { data } = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${ean}.json`);
+      if (data.status !== 1 || !data.product) return {};
+      const p = data.product;
+      const brand = (p.brands ?? p.brand_owner ?? '').trim().split(',')[0].trim() || undefined;
+      const weight = (p.quantity ?? '').trim() || undefined;
+      return { brand, weight };
+    } catch {
+      return {};
+    }
+  };
+
+  /** Enrichit avec Open Food Facts les articles sans marque ou sans poids (données actuelles non écrasées). */
+  const handleEnrichWithOff = async () => {
+    const toEnrich = items.filter((r) => !r.brand?.trim() || !r.weight?.trim());
+    if (toEnrich.length === 0) {
+      setImportMessage('Aucun article à enrichir (tous ont déjà marque et poids).');
+      setTimeout(() => setImportMessage(null), 4000);
+      return;
+    }
+    setEnrichingOff(true);
+    setOffProgress(`0 / ${toEnrich.length}`);
+    let updated = 0;
+    for (let i = 0; i < toEnrich.length; i++) {
+      const row = toEnrich[i];
+      setOffProgress(`${i + 1} / ${toEnrich.length}`);
+      const off = await fetchOffByEan(row.ean);
+      const updates: Partial<CatalogProduct> = { lastUpdated: new Date().toISOString() };
+      if (!row.brand?.trim() && off.brand) updates.brand = off.brand;
+      if (!row.weight?.trim() && off.weight) updates.weight = off.weight;
+      if (Object.keys(updates).length > 1) {
+        await updateDoc(doc(db, 'productCatalog', row.ean), updates);
+        updated++;
+      }
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    setEnrichingOff(false);
+    setOffProgress(null);
+    setImportMessage(`Enrichissement terminé : ${updated} article(s) mis à jour avec Open Food Facts.`);
+    setTimeout(() => setImportMessage(null), 6000);
+  };
+
   const openDeleteConfirm = (article: CatalogProduct) => {
     setArticleToDelete(article);
     setDeleteModalOpen(true);
@@ -350,10 +397,19 @@ const Articles: React.FC = () => {
         >
           {importing ? 'Import en cours…' : 'Importer CSV'}
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleEnrichWithOff}
+          disabled={enrichingOff || items.length === 0}
+          title="Remplir marque et poids manquants depuis Open Food Facts"
+        >
+          {enrichingOff ? `OFF… ${offProgress ?? ''}` : 'Enrichir avec OFF'}
+        </Button>
       </div>
-      {importMessage && (
-        <p className={`text-sm ${importMessage.startsWith('Erreur') ? 'text-red-600' : 'text-green-600'}`}>
-          {importMessage}
+      {(importMessage || (enrichingOff && offProgress)) && (
+        <p className={`text-sm ${importMessage?.startsWith('Erreur') ? 'text-red-600' : 'text-green-600'}`}>
+          {enrichingOff && offProgress ? `Enrichissement Open Food Facts… ${offProgress}` : importMessage}
         </p>
       )}
 
