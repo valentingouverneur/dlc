@@ -53,6 +53,8 @@ const Articles: React.FC = () => {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryUrls, setGalleryUrls] = useState<{ url: string; source: 'google' | 'off' | 'affiche' }[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
+  const [assigningCategories, setAssigningCategories] = useState(false);
+  const [assignProgress, setAssignProgress] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'productCatalog'));
@@ -367,17 +369,49 @@ const Articles: React.FC = () => {
     }
   };
 
-  const fetchOffByEan = async (ean: string): Promise<{ brand?: string; weight?: string }> => {
+  /** Map OFF categories string (ou hierarchy) vers notre catégorie fixe. */
+  const mapOffToCategory = (p: { categories?: string; categories_hierarchy?: string[] }): ProductCategory | null => {
+    const raw = [
+      (p.categories ?? ''),
+      Array.isArray(p.categories_hierarchy) ? p.categories_hierarchy.join(' ') : '',
+    ].join(' ').toLowerCase();
+    if (/meat|viande|beef|pork|volaille|poultry|canard|duck|agneau|lambs?|steak|burger/.test(raw)) return 'Viande';
+    if (/fish|seafood|poisson|saumon|colin|crevette|cabillaud|truite|thon|sardine|langouste|pangas|sole/.test(raw)) return 'Poisson';
+    if (/ice.?cream|glace|sorbet|frozen.?dessert|magnum|extreme/.test(raw)) return 'Glaces';
+    if (/vegetable|legume|legumes|haricot|epinard|petits.?pois|carotte|chou|brocoli|surgel/.test(raw) && !/pizza|plat|ready/.test(raw)) return 'Légumes';
+    if (/pizza/.test(raw)) return 'Pizza';
+    if (/fries|frite|frites|potato/.test(raw)) return 'Frites';
+    if (/ready.?meal|plat.?prepar|prepared|gratin|lasagne|poelee|parmentier|souffle|quiche/.test(raw)) return 'Plats cuisinés';
+    if (/starter|entree|entrée|soup|soupe/.test(raw)) return 'Entrée';
+    return null;
+  };
+
+  const fetchOffByEan = async (ean: string): Promise<{ brand?: string; weight?: string; category?: ProductCategory }> => {
     try {
       const { data } = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${ean}.json`);
       if (data.status !== 1 || !data.product) return {};
       const p = data.product;
       const brand = (p.brands ?? p.brand_owner ?? '').trim().split(',')[0].trim() || undefined;
       const weight = (p.quantity ?? '').trim() || undefined;
-      return { brand, weight };
+      const category = mapOffToCategory(p);
+      return { brand, weight, category: category ?? undefined };
     } catch {
       return {};
     }
+  };
+
+  /** Infère une catégorie à partir du titre (désignation). Ordre des règles = priorité. */
+  const inferCategoryFromTitle = (title: string): ProductCategory | null => {
+    const t = (title ?? '').toLowerCase();
+    if (/pizza/.test(t)) return 'Pizza';
+    if (/\b(steak|boeuf|burgers?|viande|canard|volaille|poulet|agneau|charal|hache)\b/.test(t)) return 'Viande';
+    if (/\b(saumon|colin|crevette|cabillaud|truite|thon|poisson|langouste|pangas|sole|filet de)\b/.test(t)) return 'Poisson';
+    if (/\b(glace|extreme|magnum|sorbet)\b/.test(t)) return 'Glaces';
+    if (/\b(frite|frites|pommes?\s*de\s*terre)\b/.test(t) && !/gratin|puree|poelee/.test(t)) return 'Frites';
+    if (/\b(haricot|epinard|petits?\s*pois|legume|legumes|chou|brocoli|carotte|poelee\s*leg|surgel)\b/.test(t)) return 'Légumes';
+    if (/\b(gratin|lasagne|poelee|parmentier|quiche|souffle|plat\s*cuisin)\b/.test(t)) return 'Plats cuisinés';
+    if (/\b(soupe|soup)\b/.test(t)) return 'Entrée';
+    return null;
   };
 
   /** Récupère l'URL de l'image produit depuis Open Food Facts (gratuit, pas de quota). */
@@ -450,6 +484,7 @@ const Articles: React.FC = () => {
       const updates: Partial<CatalogProduct> = { lastUpdated: new Date().toISOString() };
       if (!row.brand?.trim() && off.brand) updates.brand = off.brand;
       if (!row.weight?.trim() && off.weight) updates.weight = off.weight;
+      if (!row.category && off.category) updates.category = off.category;
       if (Object.keys(updates).length > 1) {
         await updateDoc(doc(db, 'productCatalog', row.ean), updates);
         updated++;
@@ -460,6 +495,45 @@ const Articles: React.FC = () => {
     setOffProgress(null);
     setImportMessage(`Enrichissement terminé : ${updated} article(s) mis à jour avec Open Food Facts.`);
     setTimeout(() => setImportMessage(null), 6000);
+  };
+
+  /** Attribue les catégories manquantes : OFF d'abord, puis inférence par titre. */
+  const handleAssignCategories = async () => {
+    const withoutCategory = items.filter((r) => !r.category?.trim());
+    if (withoutCategory.length === 0) {
+      setImportMessage('Tous les articles ont déjà une catégorie.');
+      setTimeout(() => setImportMessage(null), 4000);
+      return;
+    }
+    setAssigningCategories(true);
+    setAssignProgress(`0 / ${withoutCategory.length}`);
+    let fromOff = 0;
+    let fromTitle = 0;
+    for (let i = 0; i < withoutCategory.length; i++) {
+      const row = withoutCategory[i];
+      setAssignProgress(`${i + 1} / ${withoutCategory.length}`);
+      let category: ProductCategory | null = null;
+      const off = await fetchOffByEan(row.ean);
+      if (off.category) {
+        category = off.category;
+        fromOff++;
+      }
+      if (!category) category = inferCategoryFromTitle(row.title);
+      if (category) {
+        if (!off.category) fromTitle++;
+        await updateDoc(doc(db, 'productCatalog', row.ean), {
+          category,
+          lastUpdated: new Date().toISOString(),
+        });
+      }
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    setAssigningCategories(false);
+    setAssignProgress(null);
+    setImportMessage(
+      `Catégories : ${fromOff + fromTitle} attribuées (OFF : ${fromOff}, titre : ${fromTitle}). ${withoutCategory.length - fromOff - fromTitle} sans correspondance.`
+    );
+    setTimeout(() => setImportMessage(null), 7000);
   };
 
   const openDeleteConfirm = (article: CatalogProduct) => {
@@ -537,7 +611,7 @@ const Articles: React.FC = () => {
           variant="outline"
           size="sm"
           onClick={handleEnrichWithOff}
-          disabled={enrichingOff || updatingImages || items.length === 0}
+          disabled={enrichingOff || updatingImages || assigningCategories || items.length === 0}
           title="Remplir marque et poids manquants depuis Open Food Facts"
         >
           {enrichingOff ? `OFF… ${offProgress ?? ''}` : 'Enrichir avec OFF'}
@@ -546,19 +620,30 @@ const Articles: React.FC = () => {
           variant="outline"
           size="sm"
           onClick={handleUpdateImages}
-          disabled={enrichingOff || updatingImages || items.length === 0}
+          disabled={enrichingOff || updatingImages || assigningCategories || items.length === 0}
           title="Remplir les images manquantes (Google prioritaire, puis Open Food Facts)"
         >
           {updatingImages ? `Images… ${imagesProgress ?? ''}` : 'Mettre à jour les images'}
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleAssignCategories}
+          disabled={enrichingOff || updatingImages || assigningCategories || items.length === 0}
+          title="Attribuer les catégories manquantes (OFF puis règles sur le titre)"
+        >
+          {assigningCategories ? `Catégories… ${assignProgress ?? ''}` : 'Attribuer les catégories'}
+        </Button>
       </div>
-      {(importMessage || (enrichingOff && offProgress) || (updatingImages && imagesProgress)) && (
+      {(importMessage || (enrichingOff && offProgress) || (updatingImages && imagesProgress) || (assigningCategories && assignProgress)) && (
         <p className={`text-sm ${importMessage?.startsWith('Erreur') ? 'text-red-600' : 'text-green-600'}`}>
-          {updatingImages && imagesProgress
-            ? `Mise à jour des images… ${imagesProgress}`
-            : enrichingOff && offProgress
-              ? `Enrichissement Open Food Facts… ${offProgress}`
-              : importMessage}
+          {assigningCategories && assignProgress
+            ? `Attribution des catégories… ${assignProgress}`
+            : updatingImages && imagesProgress
+              ? `Mise à jour des images… ${imagesProgress}`
+              : enrichingOff && offProgress
+                ? `Enrichissement Open Food Facts… ${offProgress}`
+                : importMessage}
         </p>
       )}
 
