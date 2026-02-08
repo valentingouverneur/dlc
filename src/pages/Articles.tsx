@@ -46,9 +46,10 @@ const Articles: React.FC = () => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [editingCell, setEditingCell] = useState<{ ean: string; field: InlineEditField } | null>(null);
   const [editingValue, setEditingValue] = useState('');
-  const [fetchingImageEan, setFetchingImageEan] = useState<string | null>(null);
   const [enrichingOff, setEnrichingOff] = useState(false);
   const [offProgress, setOffProgress] = useState<string | null>(null);
+  const [updatingImages, setUpdatingImages] = useState(false);
+  const [imagesProgress, setImagesProgress] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'productCatalog'));
@@ -267,23 +268,46 @@ const Articles: React.FC = () => {
     }
   };
 
-  const handleFetchImage = async (row: CatalogProduct) => {
-    setFetchingImageEan(row.ean);
-    try {
-      const url = await ImageSearchService.searchImage(row.ean, row.title);
+  const handleUpdateImages = async () => {
+    const withoutImage = items.filter((r) => !r.imageUrl?.trim());
+    if (withoutImage.length === 0) {
+      setImportMessage('Tous les articles ont déjà une image.');
+      setTimeout(() => setImportMessage(null), 4000);
+      return;
+    }
+    const GOOGLE_LIMIT_PER_RUN = 80;
+    setUpdatingImages(true);
+    setImagesProgress(`0 / ${withoutImage.length}`);
+    let updated = 0;
+    let googleUsed = 0;
+    for (let i = 0; i < withoutImage.length; i++) {
+      const row = withoutImage[i];
+      setImagesProgress(`${i + 1} / ${withoutImage.length}`);
+      let url: string | null = null;
+      if (googleUsed < GOOGLE_LIMIT_PER_RUN) {
+        try {
+          url = await ImageSearchService.searchImage(row.ean, row.title);
+          if (url) googleUsed++;
+        } catch {
+          // try OFF next
+        }
+      }
+      if (!url) url = await fetchOffImageUrl(row.ean);
       if (url) {
-        const data = sanitizeForFirestore({
-          ...row,
+        await updateDoc(doc(db, 'productCatalog', row.ean), {
           imageUrl: url,
           lastUpdated: new Date().toISOString(),
         });
-        await setDoc(doc(db, 'productCatalog', row.ean), data);
+        updated++;
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-    setFetchingImageEan(null);
+      await new Promise((r) => setTimeout(r, 400));
     }
+    setUpdatingImages(false);
+    setImagesProgress(null);
+    setImportMessage(
+      `Images : ${updated} mis à jour (Google : ${googleUsed}, OFF en secours). Relancez pour les ${Math.max(0, withoutImage.length - updated)} restants.`
+    );
+    setTimeout(() => setImportMessage(null), 8000);
   };
 
   /** Récupère marque et poids depuis Open Food Facts (par EAN). Ne remplit que les champs renvoyés par l’API. */
@@ -297,6 +321,18 @@ const Articles: React.FC = () => {
       return { brand, weight };
     } catch {
       return {};
+    }
+  };
+
+  /** Récupère l'URL de l'image produit depuis Open Food Facts (gratuit, pas de quota). */
+  const fetchOffImageUrl = async (ean: string): Promise<string | null> => {
+    try {
+      const { data } = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${ean}.json`);
+      if (data.status !== 1 || !data.product) return null;
+      const p = data.product;
+      return (p.image_front_url || p.image_url || p.image_small_url || '').trim() || null;
+    } catch {
+      return null;
     }
   };
 
@@ -405,15 +441,28 @@ const Articles: React.FC = () => {
           variant="outline"
           size="sm"
           onClick={handleEnrichWithOff}
-          disabled={enrichingOff || items.length === 0}
+          disabled={enrichingOff || updatingImages || items.length === 0}
           title="Remplir marque et poids manquants depuis Open Food Facts"
         >
           {enrichingOff ? `OFF… ${offProgress ?? ''}` : 'Enrichir avec OFF'}
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleUpdateImages}
+          disabled={enrichingOff || updatingImages || items.length === 0}
+          title="Remplir les images manquantes (Google prioritaire, puis Open Food Facts)"
+        >
+          {updatingImages ? `Images… ${imagesProgress ?? ''}` : 'Mettre à jour les images'}
+        </Button>
       </div>
-      {(importMessage || (enrichingOff && offProgress)) && (
+      {(importMessage || (enrichingOff && offProgress) || (updatingImages && imagesProgress)) && (
         <p className={`text-sm ${importMessage?.startsWith('Erreur') ? 'text-red-600' : 'text-green-600'}`}>
-          {enrichingOff && offProgress ? `Enrichissement Open Food Facts… ${offProgress}` : importMessage}
+          {updatingImages && imagesProgress
+            ? `Mise à jour des images… ${imagesProgress}`
+            : enrichingOff && offProgress
+              ? `Enrichissement Open Food Facts… ${offProgress}`
+              : importMessage}
         </p>
       )}
 
@@ -443,29 +492,17 @@ const Articles: React.FC = () => {
                 <TableRow key={row.ean} className="hover:bg-slate-50">
                   <TableCell className="font-mono text-sm">{row.ean}</TableCell>
                   <TableCell className="w-[80px] p-1">
-                    <div className="flex flex-col items-center gap-1">
-                      {row.imageUrl ? (
-                        <img
-                          src={row.imageUrl}
-                          alt=""
-                          className="h-12 w-12 object-contain rounded border border-slate-200"
-                        />
-                      ) : (
-                        <div className="h-12 w-12 rounded border border-dashed border-slate-300 flex items-center justify-center bg-slate-50 text-slate-400 text-xs">
-                          —
-                        </div>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => handleFetchImage(row)}
-                        disabled={fetchingImageEan === row.ean}
-                        title="Récupérer image (Google)"
-                      >
-                        {fetchingImageEan === row.ean ? '…' : 'Google'}
-                      </Button>
-                    </div>
+                    {row.imageUrl ? (
+                      <img
+                        src={row.imageUrl}
+                        alt=""
+                        className="h-12 w-12 object-contain rounded border border-slate-200"
+                      />
+                    ) : (
+                      <div className="h-12 w-12 rounded border border-dashed border-slate-300 flex items-center justify-center bg-slate-50 text-slate-400 text-xs">
+                        —
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="max-w-[200px]" title={row.title}>
                     {editingCell?.ean === row.ean && editingCell?.field === 'title' ? (
