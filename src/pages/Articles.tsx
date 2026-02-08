@@ -46,15 +46,17 @@ const Articles: React.FC = () => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [editingCell, setEditingCell] = useState<{ ean: string; field: InlineEditField } | null>(null);
   const [editingValue, setEditingValue] = useState('');
+  const [updatingMissing, setUpdatingMissing] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState<string | null>(null);
   const [enrichingOff, setEnrichingOff] = useState(false);
   const [offProgress, setOffProgress] = useState<string | null>(null);
   const [updatingImages, setUpdatingImages] = useState(false);
   const [imagesProgress, setImagesProgress] = useState<string | null>(null);
+  const [assigningCategories, setAssigningCategories] = useState(false);
+  const [assignProgress, setAssignProgress] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryUrls, setGalleryUrls] = useState<{ url: string; source: 'google' | 'off' | 'affiche' }[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
-  const [assigningCategories, setAssigningCategories] = useState(false);
-  const [assignProgress, setAssignProgress] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'productCatalog'));
@@ -536,6 +538,69 @@ const Articles: React.FC = () => {
     setTimeout(() => setImportMessage(null), 7000);
   };
 
+  /** Met à jour en une passe les articles qui ont au moins un champ manquant (données OFF + catégorie titre + image affiches/Google/OFF). */
+  const handleUpdateMissingData = async () => {
+    const needsUpdate = items.filter(
+      (r) => !r.brand?.trim() || !r.weight?.trim() || !r.category?.trim() || !r.imageUrl?.trim()
+    );
+    if (needsUpdate.length === 0) {
+      setImportMessage('Aucun article à mettre à jour (toutes les données sont renseignées).');
+      setTimeout(() => setImportMessage(null), 4000);
+      return;
+    }
+    const GOOGLE_LIMIT_PER_RUN = 80;
+    setUpdatingMissing(true);
+    setUpdateProgress(`0 / ${needsUpdate.length}`);
+    let updated = 0;
+    let googleUsed = 0;
+    for (let i = 0; i < needsUpdate.length; i++) {
+      const row = needsUpdate[i];
+      setUpdateProgress(`${i + 1} / ${needsUpdate.length}`);
+      const updates: Partial<CatalogProduct> = { lastUpdated: new Date().toISOString() };
+      const needsData = !row.brand?.trim() || !row.weight?.trim() || !row.category?.trim();
+      const needsImage = !row.imageUrl?.trim();
+
+      if (needsData) {
+        const off = await fetchOffByEan(row.ean);
+        if (!row.brand?.trim() && off.brand) updates.brand = off.brand;
+        if (!row.weight?.trim() && off.weight) updates.weight = off.weight;
+        if (!row.category?.trim() && off.category) updates.category = off.category;
+        if (!row.category?.trim() && !updates.category) {
+          const fromTitle = inferCategoryFromTitle(row.title);
+          if (fromTitle) updates.category = fromTitle;
+        }
+      }
+
+      if (needsImage) {
+        let url: string | null = await getImageFromAffiches(row.ean);
+        if (!url && googleUsed < GOOGLE_LIMIT_PER_RUN) {
+          try {
+            url = await ImageSearchService.searchImage(row.ean, row.title);
+            if (url) googleUsed++;
+          } catch {
+            //
+          }
+        }
+        if (!url) url = await fetchOffImageUrl(row.ean);
+        if (url) updates.imageUrl = url;
+      }
+
+      const hasUpdates = Object.keys(updates).length > 1;
+      if (hasUpdates) {
+        const toWrite = sanitizeForFirestore({ ...row, ...updates });
+        await setDoc(doc(db, 'productCatalog', row.ean), toWrite);
+        updated++;
+      }
+      await new Promise((r) => setTimeout(r, 350));
+    }
+    setUpdatingMissing(false);
+    setUpdateProgress(null);
+    setImportMessage(
+      `Données manquantes : ${updated} article(s) mis à jour sur ${needsUpdate.length} traités. Relancez si besoin.`
+    );
+    setTimeout(() => setImportMessage(null), 7000);
+  };
+
   const openDeleteConfirm = (article: CatalogProduct) => {
     setArticleToDelete(article);
     setDeleteModalOpen(true);
@@ -608,42 +673,18 @@ const Articles: React.FC = () => {
           {importing ? 'Import en cours…' : 'Importer CSV'}
         </Button>
         <Button
-          variant="outline"
           size="sm"
-          onClick={handleEnrichWithOff}
-          disabled={enrichingOff || updatingImages || assigningCategories || items.length === 0}
-          title="Remplir marque et poids manquants depuis Open Food Facts"
+          onClick={handleUpdateMissingData}
+          disabled={updatingMissing || items.length === 0}
+          title="Remplir marque, poids, catégorie et image manquants (OFF, affiches, Google)"
+          className="bg-[#6F73F3] hover:bg-[#5F64EE] text-white rounded-lg"
         >
-          {enrichingOff ? `OFF… ${offProgress ?? ''}` : 'Enrichir avec OFF'}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleUpdateImages}
-          disabled={enrichingOff || updatingImages || assigningCategories || items.length === 0}
-          title="Remplir les images manquantes (Google prioritaire, puis Open Food Facts)"
-        >
-          {updatingImages ? `Images… ${imagesProgress ?? ''}` : 'Mettre à jour les images'}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleAssignCategories}
-          disabled={enrichingOff || updatingImages || assigningCategories || items.length === 0}
-          title="Attribuer les catégories manquantes (OFF puis règles sur le titre)"
-        >
-          {assigningCategories ? `Catégories… ${assignProgress ?? ''}` : 'Attribuer les catégories'}
+          {updatingMissing ? `Mise à jour… ${updateProgress ?? ''}` : 'Mettre à jour les données manquantes'}
         </Button>
       </div>
-      {(importMessage || (enrichingOff && offProgress) || (updatingImages && imagesProgress) || (assigningCategories && assignProgress)) && (
+      {(importMessage || (updatingMissing && updateProgress)) && (
         <p className={`text-sm ${importMessage?.startsWith('Erreur') ? 'text-red-600' : 'text-green-600'}`}>
-          {assigningCategories && assignProgress
-            ? `Attribution des catégories… ${assignProgress}`
-            : updatingImages && imagesProgress
-              ? `Mise à jour des images… ${imagesProgress}`
-              : enrichingOff && offProgress
-                ? `Enrichissement Open Food Facts… ${offProgress}`
-                : importMessage}
+          {updatingMissing && updateProgress ? `Mise à jour des données… ${updateProgress}` : importMessage}
         </p>
       )}
 
