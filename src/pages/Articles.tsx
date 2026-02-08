@@ -22,6 +22,11 @@ type SortKey = 'ean' | 'title' | 'brand' | 'weight' | 'category';
 type ModalMode = 'view' | 'edit' | null;
 type InlineEditField = 'title' | 'brand' | 'weight';
 
+/** Retire les champs undefined pour que Firestore accepte l'objet (il refuse undefined). */
+function sanitizeForFirestore<T extends Record<string, unknown>>(obj: T): Record<string, T[keyof T]> {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Record<string, T[keyof T]>;
+}
+
 const Articles: React.FC = () => {
   const [items, setItems] = useState<CatalogProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -220,10 +225,8 @@ const Articles: React.FC = () => {
         source: 'manual',
         lastUpdated: new Date().toISOString(),
       };
-      await setDoc(doc(db, 'productCatalog', selectedArticle.ean), {
-        ...selectedArticle,
-        ...payload,
-      });
+      const data = sanitizeForFirestore({ ...selectedArticle, ...payload });
+      await setDoc(doc(db, 'productCatalog', selectedArticle.ean), data);
       closeSheet();
     } catch (err) {
       console.error(err);
@@ -269,11 +272,12 @@ const Articles: React.FC = () => {
     try {
       const url = await ImageSearchService.searchImage(row.ean, row.title);
       if (url) {
-        await setDoc(doc(db, 'productCatalog', row.ean), {
+        const data = sanitizeForFirestore({
           ...row,
           imageUrl: url,
           lastUpdated: new Date().toISOString(),
         });
+        await setDoc(doc(db, 'productCatalog', row.ean), data);
       }
     } catch (err) {
       console.error(err);
