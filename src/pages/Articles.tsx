@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, query, onSnapshot, deleteDoc, doc, setDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, deleteDoc, doc, setDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { CatalogProduct } from '../types/CatalogProduct';
 import { PRODUCT_CATEGORIES, CATEGORY_BADGE_COLORS, type ProductCategory } from '../constants/categories';
@@ -33,6 +33,9 @@ const Articles: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [articleToDelete, setArticleToDelete] = useState<CatalogProduct | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'productCatalog'));
@@ -89,6 +92,59 @@ const Articles: React.FC = () => {
     else {
       setSortKey(key);
       setSortOrder('asc');
+    }
+  };
+
+  /** Parse EAN depuis le format Excel Abaco : "=""2643905000000""" */
+  const parseEan = (raw: string): string => {
+    const digits = raw.replace(/\D/g, '');
+    return digits.length >= 12 && digits.length <= 14 ? digits.slice(-13).padStart(13, '0').slice(0, 13) : '';
+  };
+
+  const handleImportCsv = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setImporting(true);
+    setImportMessage(null);
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter((l) => l.trim());
+      // Abaco : lignes 1-2 périodes, 3-4 en-têtes, données à partir de 5
+      const dataLines = lines.slice(4);
+      const now = new Date().toISOString();
+      const toUpsert: { ean: string; title: string }[] = [];
+      for (const line of dataLines) {
+        const parts = line.split(';');
+        if (parts.length < 2) continue;
+        const rawEan = (parts[0] ?? '').replace(/^"|"$/g, '').trim();
+        const ean = parseEan(rawEan);
+        const title = (parts[1] ?? '').replace(/^"|"$/g, '').trim();
+        if (ean && title) toUpsert.push({ ean, title });
+      }
+      const BATCH_SIZE = 500;
+      let written = 0;
+      for (let i = 0; i < toUpsert.length; i += BATCH_SIZE) {
+        const batch = writeBatch(db);
+        const chunk = toUpsert.slice(i, i + BATCH_SIZE);
+        for (const { ean, title } of chunk) {
+          batch.set(doc(db, 'productCatalog', ean), {
+            ean,
+            title,
+            source: 'abaco',
+            lastUpdated: now,
+          });
+        }
+        await batch.commit();
+        written += chunk.length;
+      }
+      setImportMessage(`Import terminé : ${written} article(s) importé(s).`);
+      setTimeout(() => setImportMessage(null), 5000);
+    } catch (err) {
+      console.error(err);
+      setImportMessage('Erreur lors de l\'import. Vérifiez le format du fichier (CSV Abaco ; séparateur).');
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -210,7 +266,27 @@ const Articles: React.FC = () => {
         <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={sortedItems.length === 0}>
           Export CSV
         </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv"
+          className="hidden"
+          onChange={handleImportCsv}
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={importing}
+        >
+          {importing ? 'Import en cours…' : 'Importer CSV'}
+        </Button>
       </div>
+      {importMessage && (
+        <p className={`text-sm ${importMessage.startsWith('Erreur') ? 'text-red-600' : 'text-green-600'}`}>
+          {importMessage}
+        </p>
+      )}
 
       {/* Table */}
       <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
