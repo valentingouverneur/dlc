@@ -53,6 +53,7 @@ const Articles: React.FC = () => {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryUrls, setGalleryUrls] = useState<{ url: string; source: 'google' | 'off' }[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
+  const [imagePopupUrl, setImagePopupUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'productCatalog'));
@@ -563,11 +564,18 @@ const Articles: React.FC = () => {
                   <TableCell className="font-mono text-sm">{row.ean}</TableCell>
                   <TableCell className="w-[80px] p-1">
                     {row.imageUrl ? (
-                      <img
-                        src={row.imageUrl}
-                        alt=""
-                        className="h-12 w-12 object-contain rounded border border-slate-200"
-                      />
+                      <button
+                        type="button"
+                        onClick={() => setImagePopupUrl(row.imageUrl!)}
+                        className="block rounded border border-slate-200 overflow-hidden hover:ring-2 hover:ring-[#6F73F3] focus:outline-none focus:ring-2 focus:ring-[#6F73F3]"
+                        title="Cliquer pour agrandir"
+                      >
+                        <img
+                          src={row.imageUrl}
+                          alt=""
+                          className="h-12 w-12 object-contain"
+                        />
+                      </button>
                     ) : (
                       <div className="h-12 w-12 rounded border border-dashed border-slate-300 flex items-center justify-center bg-slate-50 text-slate-400 text-xs">
                         —
@@ -854,6 +862,33 @@ const Articles: React.FC = () => {
             : ''
         }
       />
+
+      {/* Popup image (tableau) — comme Affiches */}
+      {imagePopupUrl && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+          onClick={() => setImagePopupUrl(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] p-4">
+            <img
+              src={imagePopupUrl}
+              alt="Produit"
+              className="max-w-full max-h-[90vh] object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button
+              type="button"
+              onClick={() => setImagePopupUrl(null)}
+              className="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75"
+              aria-label="Fermer"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
