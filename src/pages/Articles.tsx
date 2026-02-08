@@ -50,6 +50,9 @@ const Articles: React.FC = () => {
   const [offProgress, setOffProgress] = useState<string | null>(null);
   const [updatingImages, setUpdatingImages] = useState(false);
   const [imagesProgress, setImagesProgress] = useState<string | null>(null);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryUrls, setGalleryUrls] = useState<{ url: string; source: 'google' | 'off' }[]>([]);
+  const [galleryLoading, setGalleryLoading] = useState(false);
 
   useEffect(() => {
     const q = query(collection(db, 'productCatalog'));
@@ -211,6 +214,8 @@ const Articles: React.FC = () => {
     setSheetModalOpen(false);
     setSheetMode(null);
     setSelectedArticle(null);
+    setGalleryOpen(false);
+    setGalleryUrls([]);
   };
 
   const handleSaveSheet = async () => {
@@ -311,6 +316,49 @@ const Articles: React.FC = () => {
   };
 
   /** Récupère marque et poids depuis Open Food Facts (par EAN). Ne remplit que les champs renvoyés par l’API. */
+  const openImageGallery = async () => {
+    if (!selectedArticle) return;
+    setGalleryOpen(true);
+    setGalleryLoading(true);
+    setGalleryUrls([]);
+    try {
+      const [googleUrls, offUrls] = await Promise.all([
+        ImageSearchService.searchGoogleImageAll(selectedArticle.ean, selectedArticle.title),
+        fetchOffAllImageUrls(selectedArticle.ean),
+      ]);
+      const withSource: { url: string; source: 'google' | 'off' }[] = [
+        ...googleUrls.map((url) => ({ url, source: 'google' as const })),
+        ...offUrls.map((url) => ({ url, source: 'off' as const })),
+      ];
+      const seen = new Set<string>();
+      const deduped = withSource.filter(({ url }) => {
+        if (seen.has(url)) return false;
+        seen.add(url);
+        return true;
+      });
+      setGalleryUrls(deduped);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setGalleryLoading(false);
+    }
+  };
+
+  const selectGalleryImage = async (url: string) => {
+    if (!selectedArticle) return;
+    try {
+      await updateDoc(doc(db, 'productCatalog', selectedArticle.ean), {
+        imageUrl: url,
+        lastUpdated: new Date().toISOString(),
+      });
+      setSelectedArticle({ ...selectedArticle, imageUrl: url });
+      setEditForm((f) => ({ ...f, imageUrl: url }));
+      setGalleryOpen(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchOffByEan = async (ean: string): Promise<{ brand?: string; weight?: string }> => {
     try {
       const { data } = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${ean}.json`);
@@ -333,6 +381,28 @@ const Articles: React.FC = () => {
       return (p.image_front_url || p.image_url || p.image_small_url || '').trim() || null;
     } catch {
       return null;
+    }
+  };
+
+  /** Récupère toutes les URLs d'images OFF pour la galerie (image_front, image_url, + product.images). */
+  const fetchOffAllImageUrls = async (ean: string): Promise<string[]> => {
+    try {
+      const { data } = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${ean}.json`);
+      if (data.status !== 1 || !data.product) return [];
+      const p = data.product;
+      const urls = new Set<string>();
+      for (const u of [p.image_front_url, p.image_url, p.image_small_url]) {
+        if ((u || '').trim()) urls.add((u as string).trim());
+      }
+      const images = p.images as Record<string, { url?: string }> | undefined;
+      if (images && typeof images === 'object') {
+        for (const img of Object.values(images)) {
+          if (img?.url?.trim()) urls.add(img.url.trim());
+        }
+      }
+      return Array.from(urls);
+    } catch {
+      return [];
     }
   };
 
@@ -705,16 +775,57 @@ const Articles: React.FC = () => {
                 </p>
               )}
             </div>
-            {selectedArticle.imageUrl && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Image</label>
-                <img
-                  src={selectedArticle.imageUrl}
-                  alt=""
-                  className="max-h-40 rounded object-contain border border-slate-200"
-                />
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Image</label>
+              {!galleryOpen ? (
+                <button
+                  type="button"
+                  onClick={openImageGallery}
+                  className="block rounded border border-slate-200 overflow-hidden bg-slate-50 hover:ring-2 hover:ring-[#6F73F3] focus:outline-none focus:ring-2 focus:ring-[#6F73F3]"
+                >
+                  {selectedArticle.imageUrl ? (
+                    <img
+                      src={selectedArticle.imageUrl}
+                      alt=""
+                      className="max-h-40 w-full object-contain"
+                    />
+                  ) : (
+                    <div className="max-h-40 h-32 w-full flex items-center justify-center text-slate-400 text-sm">
+                      Cliquer pour ouvrir la galerie (Google + OFF)
+                    </div>
+                  )}
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-600">
+                      {galleryLoading ? 'Chargement…' : `${galleryUrls.length} image(s) — Choisir celle à utiliser`}
+                    </span>
+                    <Button variant="outline" size="sm" onClick={() => setGalleryOpen(false)}>
+                      Fermer la galerie
+                    </Button>
+                  </div>
+                  {!galleryLoading && (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-80 overflow-y-auto">
+                      {galleryUrls.map(({ url, source }) => (
+                        <button
+                          key={url}
+                          type="button"
+                          onClick={() => selectGalleryImage(url)}
+                          className="rounded border-2 border-slate-200 hover:border-[#6F73F3] hover:ring-2 hover:ring-[#6F73F3] overflow-hidden bg-white"
+                        >
+                          <img src={url} alt="" className="w-full aspect-square object-contain" />
+                          <span className="block text-xs text-slate-500 py-0.5">{source}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!galleryLoading && galleryUrls.length === 0 && (
+                    <p className="text-sm text-slate-500">Aucune image trouvée (Google ni OFF).</p>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="flex justify-end gap-2 pt-4 border-t">
               <Button variant="outline" onClick={closeSheet}>
                 Fermer

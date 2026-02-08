@@ -96,7 +96,7 @@ export class ImageSearchService {
       
       if (response.data.items && response.data.items.length > 0) {
         console.log(`📸 ${response.data.items.length} images trouvées`);
-        console.log('🖼️ Premières images:', response.data.items.slice(0, 3).map(item => ({
+        console.log('🖼️ Premières images:', response.data.items.slice(0, 3).map((item: { link?: string; displayLink?: string; title?: string }) => ({
           link: item.link,
           displayLink: item.displayLink,
           title: item.title
@@ -184,6 +184,67 @@ export class ImageSearchService {
    */
   static async searchImage(ean: string, productName?: string): Promise<string | null> {
     return await this.searchGoogleImage(ean, productName);
+  }
+
+  /**
+   * Retourne toutes les URLs d'images trouvées par Google (pour galerie de choix).
+   * Même logique que searchGoogleImage mais retourne tous les liens non exclus.
+   */
+  static async searchGoogleImageAll(ean: string, productName?: string): Promise<string[]> {
+    if (!this.GOOGLE_API_KEY || !this.GOOGLE_CSE_ID) return [];
+    const excludedDomains = [
+      'openfoodfacts', 'flickr', 'pinterest', 'instagram', 'facebook',
+      'tumblr', 'imgur', 'reddit'
+    ];
+    try {
+      const apiUrl = 'https://www.googleapis.com/customsearch/v1';
+      let params: Record<string, string | number> = {
+        key: this.GOOGLE_API_KEY,
+        cx: this.GOOGLE_CSE_ID,
+        searchType: 'image',
+        num: 10,
+        safe: 'active',
+        q: ean,
+      };
+      let response: any = null;
+      try {
+        response = await axios.get(apiUrl, { params });
+      } catch {
+        // try with product name
+      }
+      if ((!response?.data?.items?.length) && productName) {
+        params.q = `${productName} ${ean}`;
+        try {
+          response = await axios.get(apiUrl, { params });
+        } catch {
+          //
+        }
+      }
+      if ((!response?.data?.items?.length) && productName) {
+        params.q = productName;
+        try {
+          response = await axios.get(apiUrl, { params });
+        } catch {
+          //
+        }
+      }
+      if (!response?.data?.items?.length) return [];
+      const urls: string[] = [];
+      for (const item of response.data.items) {
+        try {
+          const link = item.link;
+          if (!link) continue;
+          const domain = new URL(link).hostname.toLowerCase();
+          if (excludedDomains.some((ex) => domain.includes(ex))) continue;
+          urls.push(link);
+        } catch {
+          continue;
+        }
+      }
+      return urls;
+    } catch {
+      return [];
+    }
   }
 }
 
