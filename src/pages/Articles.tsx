@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, query, onSnapshot, deleteDoc, doc, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, query, onSnapshot, deleteDoc, doc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { CatalogProduct } from '../types/CatalogProduct';
 import { PRODUCT_CATEGORIES, CATEGORY_BADGE_COLORS, type ProductCategory } from '../constants/categories';
@@ -15,9 +15,11 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
+import { ImageSearchService } from '../services/ImageSearchService';
 
 type SortKey = 'ean' | 'title' | 'brand' | 'weight' | 'category';
 type ModalMode = 'view' | 'edit' | null;
+type InlineEditField = 'title' | 'brand' | 'weight';
 
 const Articles: React.FC = () => {
   const [items, setItems] = useState<CatalogProduct[]>([]);
@@ -36,6 +38,9 @@ const Articles: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [editingCell, setEditingCell] = useState<{ ean: string; field: InlineEditField } | null>(null);
+  const [editingValue, setEditingValue] = useState('');
+  const [fetchingImageEan, setFetchingImageEan] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'productCatalog'));
@@ -101,6 +106,20 @@ const Articles: React.FC = () => {
     return digits.length >= 12 && digits.length <= 14 ? digits.slice(-13).padStart(13, '0').slice(0, 13) : '';
   };
 
+  /** Extrait le poids du titre (ex. "1KG", "500G", "0.9.1KG") et le retire du titre */
+  const extractWeightFromTitle = (title: string): { title: string; weight?: string } => {
+    const trimmed = title.trim();
+    const match = trimmed.match(/\s+(\d+(?:[.,]\d+)*)\s*(kg|g|KG|G)\s*$/i);
+    if (match) {
+      const num = match[1].replace(',', '.');
+      const unit = match[2].toLowerCase();
+      const weight = `${num}${unit}`;
+      const newTitle = trimmed.slice(0, match.index).trim();
+      return { title: newTitle, weight };
+    }
+    return { title: trimmed };
+  };
+
   const handleImportCsv = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -110,27 +129,28 @@ const Articles: React.FC = () => {
     try {
       const text = await file.text();
       const lines = text.split(/\r?\n/).filter((l) => l.trim());
-      // Abaco : lignes 1-2 périodes, 3-4 en-têtes, données à partir de 5
       const dataLines = lines.slice(4);
       const now = new Date().toISOString();
-      const toUpsert: { ean: string; title: string }[] = [];
+      const toUpsert: { ean: string; title: string; weight?: string }[] = [];
       for (const line of dataLines) {
         const parts = line.split(';');
         if (parts.length < 2) continue;
         const rawEan = (parts[0] ?? '').replace(/^"|"$/g, '').trim();
         const ean = parseEan(rawEan);
-        const title = (parts[1] ?? '').replace(/^"|"$/g, '').trim();
-        if (ean && title) toUpsert.push({ ean, title });
+        const rawTitle = (parts[1] ?? '').replace(/^"|"$/g, '').trim();
+        const { title, weight } = extractWeightFromTitle(rawTitle);
+        if (ean && title) toUpsert.push({ ean, title, ...(weight && { weight }) });
       }
       const BATCH_SIZE = 500;
       let written = 0;
       for (let i = 0; i < toUpsert.length; i += BATCH_SIZE) {
         const batch = writeBatch(db);
         const chunk = toUpsert.slice(i, i + BATCH_SIZE);
-        for (const { ean, title } of chunk) {
-          batch.set(doc(db, 'productCatalog', ean), {
-            ean,
-            title,
+        for (const row of chunk) {
+          batch.set(doc(db, 'productCatalog', row.ean), {
+            ean: row.ean,
+            title: row.title,
+            ...(row.weight && { weight: row.weight }),
             source: 'abaco',
             lastUpdated: now,
           });
@@ -207,6 +227,55 @@ const Articles: React.FC = () => {
       alert('Erreur lors de l\'enregistrement');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const startInlineEdit = (row: CatalogProduct, field: InlineEditField) => {
+    setEditingCell({ ean: row.ean, field });
+    const val = row[field];
+    setEditingValue(typeof val === 'string' ? val : '');
+  };
+
+  const saveInlineEdit = async () => {
+    if (!editingCell) return;
+    const { ean, field } = editingCell;
+    try {
+      await updateDoc(doc(db, 'productCatalog', ean), {
+        [field]: editingValue.trim() || null,
+        lastUpdated: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error(err);
+    }
+    setEditingCell(null);
+  };
+
+  const handleCategoryChange = async (ean: string, category: ProductCategory | '') => {
+    try {
+      await updateDoc(doc(db, 'productCatalog', ean), {
+        category: category || null,
+        lastUpdated: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleFetchImage = async (row: CatalogProduct) => {
+    setFetchingImageEan(row.ean);
+    try {
+      const url = await ImageSearchService.searchImage(row.ean, row.title);
+      if (url) {
+        await setDoc(doc(db, 'productCatalog', row.ean), {
+          ...row,
+          imageUrl: url,
+          lastUpdated: new Date().toISOString(),
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+    setFetchingImageEan(null);
     }
   };
 
@@ -301,6 +370,7 @@ const Articles: React.FC = () => {
             <TableHeader>
               <TableRow className="bg-slate-50 hover:bg-slate-50">
                 <SortHeader id="ean" label="EAN" />
+                <TableHead className="w-[80px]">Photo</TableHead>
                 <SortHeader id="title" label="Titre" />
                 <SortHeader id="brand" label="Marque" />
                 <SortHeader id="weight" label="Poids" />
@@ -312,25 +382,105 @@ const Articles: React.FC = () => {
               {sortedItems.map((row) => (
                 <TableRow key={row.ean} className="hover:bg-slate-50">
                   <TableCell className="font-mono text-sm">{row.ean}</TableCell>
-                  <TableCell className="max-w-[200px] truncate" title={row.title}>
-                    {row.title}
-                  </TableCell>
-                  <TableCell>{row.brand ?? '—'}</TableCell>
-                  <TableCell>{row.weight ?? '—'}</TableCell>
-                  <TableCell>
-                    {row.category ? (
-                      <span
-                        className={
-                          CATEGORY_BADGE_COLORS[row.category]
-                            ? `inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CATEGORY_BADGE_COLORS[row.category]}`
-                            : 'text-slate-500'
-                        }
+                  <TableCell className="w-[80px] p-1">
+                    <div className="flex flex-col items-center gap-1">
+                      {row.imageUrl ? (
+                        <img
+                          src={row.imageUrl}
+                          alt=""
+                          className="h-12 w-12 object-contain rounded border border-slate-200"
+                        />
+                      ) : (
+                        <div className="h-12 w-12 rounded border border-dashed border-slate-300 flex items-center justify-center bg-slate-50 text-slate-400 text-xs">
+                          —
+                        </div>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => handleFetchImage(row)}
+                        disabled={fetchingImageEan === row.ean}
+                        title="Récupérer image (Google)"
                       >
-                        {row.category}
-                      </span>
+                        {fetchingImageEan === row.ean ? '…' : 'Google'}
+                      </Button>
+                    </div>
+                  </TableCell>
+                  <TableCell className="max-w-[200px]" title={row.title}>
+                    {editingCell?.ean === row.ean && editingCell?.field === 'title' ? (
+                      <Input
+                        className="h-8 text-sm"
+                        value={editingValue}
+                        onChange={(e) => setEditingValue(e.target.value)}
+                        onBlur={saveInlineEdit}
+                        onKeyDown={(e) => e.key === 'Enter' && saveInlineEdit()}
+                        autoFocus
+                      />
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <span
+                        className="block truncate cursor-pointer hover:bg-slate-100 rounded px-1 -mx-1"
+                        onClick={() => startInlineEdit(row, 'title')}
+                      >
+                        {row.title || '—'}
+                      </span>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    {editingCell?.ean === row.ean && editingCell?.field === 'brand' ? (
+                      <Input
+                        className="h-8 text-sm"
+                        value={editingValue}
+                        onChange={(e) => setEditingValue(e.target.value)}
+                        onBlur={saveInlineEdit}
+                        onKeyDown={(e) => e.key === 'Enter' && saveInlineEdit()}
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        className="block cursor-pointer hover:bg-slate-100 rounded px-1 -mx-1 min-w-[60px]"
+                        onClick={() => startInlineEdit(row, 'brand')}
+                      >
+                        {row.brand ?? '—'}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {editingCell?.ean === row.ean && editingCell?.field === 'weight' ? (
+                      <Input
+                        className="h-8 text-sm w-20"
+                        value={editingValue}
+                        onChange={(e) => setEditingValue(e.target.value)}
+                        onBlur={saveInlineEdit}
+                        onKeyDown={(e) => e.key === 'Enter' && saveInlineEdit()}
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        className="block cursor-pointer hover:bg-slate-100 rounded px-1 -mx-1 w-14"
+                        onClick={() => startInlineEdit(row, 'weight')}
+                      >
+                        {row.weight ?? '—'}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <select
+                      value={row.category ?? ''}
+                      onChange={(e) => handleCategoryChange(row.ean, (e.target.value || '') as ProductCategory | '')}
+                      className={`h-8 min-w-[120px] rounded-md border border-input bg-background px-2 py-1 text-xs ${
+                        row.category
+                          ? `font-medium ${CATEGORY_BADGE_COLORS[row.category] ?? 'bg-slate-100 text-slate-700'}`
+                          : 'text-slate-500'
+                      }`}
+                    >
+                      <option value="">Choisir…</option>
+                      {PRODUCT_CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
