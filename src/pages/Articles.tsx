@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { collection, query, onSnapshot, deleteDoc, doc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, query, where, limit, getDocs, onSnapshot, deleteDoc, doc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { CatalogProduct } from '../types/CatalogProduct';
 import { PRODUCT_CATEGORIES, CATEGORY_BADGE_COLORS, type ProductCategory } from '../constants/categories';
@@ -51,7 +51,7 @@ const Articles: React.FC = () => {
   const [updatingImages, setUpdatingImages] = useState(false);
   const [imagesProgress, setImagesProgress] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
-  const [galleryUrls, setGalleryUrls] = useState<{ url: string; source: 'google' | 'off' }[]>([]);
+  const [galleryUrls, setGalleryUrls] = useState<{ url: string; source: 'google' | 'off' | 'affiche' }[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
   const [imagePopupUrl, setImagePopupUrl] = useState<string | null>(null);
 
@@ -285,17 +285,20 @@ const Articles: React.FC = () => {
     setUpdatingImages(true);
     setImagesProgress(`0 / ${withoutImage.length}`);
     let updated = 0;
+    let fromAffiches = 0;
     let googleUsed = 0;
     for (let i = 0; i < withoutImage.length; i++) {
       const row = withoutImage[i];
       setImagesProgress(`${i + 1} / ${withoutImage.length}`);
       let url: string | null = null;
-      if (googleUsed < GOOGLE_LIMIT_PER_RUN) {
+      url = await getImageFromAffiches(row.ean);
+      if (url) fromAffiches++;
+      if (!url && googleUsed < GOOGLE_LIMIT_PER_RUN) {
         try {
           url = await ImageSearchService.searchImage(row.ean, row.title);
           if (url) googleUsed++;
         } catch {
-          // try OFF next
+          //
         }
       }
       if (!url) url = await fetchOffImageUrl(row.ean);
@@ -310,9 +313,11 @@ const Articles: React.FC = () => {
     }
     setUpdatingImages(false);
     setImagesProgress(null);
-    setImportMessage(
-      `Images : ${updated} mis à jour (Google : ${googleUsed}, OFF en secours). Relancez pour les ${Math.max(0, withoutImage.length - updated)} restants.`
-    );
+    const parts = [`${updated} mis à jour`];
+    if (fromAffiches) parts.push(`Affiches : ${fromAffiches}`);
+    if (googleUsed) parts.push(`Google : ${googleUsed}`);
+    if (updated > fromAffiches + googleUsed) parts.push('OFF en secours');
+    setImportMessage(`Images : ${parts.join(' • ')}. Relancez pour les ${Math.max(0, withoutImage.length - updated)} restants.`);
     setTimeout(() => setImportMessage(null), 8000);
   };
 
@@ -323,14 +328,17 @@ const Articles: React.FC = () => {
     setGalleryLoading(true);
     setGalleryUrls([]);
     try {
+      const afficheUrl = await getImageFromAffiches(selectedArticle.ean);
       const [googleUrls, offUrls] = await Promise.all([
         ImageSearchService.searchGoogleImageAll(selectedArticle.ean, selectedArticle.title),
         fetchOffAllImageUrls(selectedArticle.ean),
       ]);
-      const withSource: { url: string; source: 'google' | 'off' }[] = [
+      const withSource: { url: string; source: 'google' | 'off' | 'affiche' }[] = [];
+      if (afficheUrl) withSource.push({ url: afficheUrl, source: 'affiche' });
+      withSource.push(
         ...googleUrls.map((url) => ({ url, source: 'google' as const })),
         ...offUrls.map((url) => ({ url, source: 'off' as const })),
-      ];
+      );
       const seen = new Set<string>();
       const deduped = withSource.filter(({ url }) => {
         if (seen.has(url)) return false;
@@ -380,6 +388,24 @@ const Articles: React.FC = () => {
       if (data.status !== 1 || !data.product) return null;
       const p = data.product;
       return (p.image_front_url || p.image_url || p.image_small_url || '').trim() || null;
+    } catch {
+      return null;
+    }
+  };
+
+  /** Récupère l'image déjà utilisée sur une affiche pour cet EAN (évite requêtes Google). */
+  const getImageFromAffiches = async (ean: string): Promise<string | null> => {
+    try {
+      const q = query(
+        collection(db, 'affiches'),
+        where('ean', '==', ean),
+        limit(1)
+      );
+      const snap = await getDocs(q);
+      const first = snap.docs[0];
+      if (!first) return null;
+      const url = (first.data().imageUrl as string)?.trim();
+      return url || null;
     } catch {
       return null;
     }
