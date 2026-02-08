@@ -5,13 +5,13 @@ interface ModalProps {
   onClose: () => void;
   children: React.ReactNode;
   title?: string;
-  size?: 'default' | 'large';
+  size?: 'default' | 'large' | 'xl';
 }
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, size = 'default' }) => {
   if (!isOpen) return null;
 
-  const maxWidthClass = size === 'large' ? 'max-w-3xl' : 'max-w-lg';
+  const maxWidthClass = size === 'xl' ? 'max-w-4xl' : size === 'large' ? 'max-w-3xl' : 'max-w-lg';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

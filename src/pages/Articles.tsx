@@ -53,7 +53,6 @@ const Articles: React.FC = () => {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryUrls, setGalleryUrls] = useState<{ url: string; source: 'google' | 'off' | 'affiche' }[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
-  const [imagePopupUrl, setImagePopupUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'productCatalog'));
@@ -592,9 +591,9 @@ const Articles: React.FC = () => {
                     {row.imageUrl ? (
                       <button
                         type="button"
-                        onClick={() => setImagePopupUrl(row.imageUrl!)}
-                        className="block rounded border border-slate-200 overflow-hidden hover:ring-2 hover:ring-[#6F73F3] focus:outline-none focus:ring-2 focus:ring-[#6F73F3]"
-                        title="Cliquer pour agrandir"
+                        onClick={() => openSheet(row, 'view')}
+                        className="block rounded-lg border border-slate-200 overflow-hidden hover:ring-2 hover:ring-[#6F73F3] focus:outline-none focus:ring-2 focus:ring-[#6F73F3]"
+                        title="Ouvrir la fiche article"
                       >
                         <img
                           src={row.imageUrl}
@@ -603,9 +602,14 @@ const Articles: React.FC = () => {
                         />
                       </button>
                     ) : (
-                      <div className="h-12 w-12 rounded border border-dashed border-slate-300 flex items-center justify-center bg-slate-50 text-slate-400 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => openSheet(row, 'view')}
+                        className="h-12 w-12 rounded-lg border border-dashed border-slate-300 flex items-center justify-center bg-slate-50 text-slate-400 text-xs hover:bg-slate-100"
+                        title="Ouvrir la fiche article"
+                      >
                         —
-                      </div>
+                      </button>
                     )}
                   </TableCell>
                   <TableCell className="max-w-[200px]" title={row.title}>
@@ -728,147 +732,156 @@ const Articles: React.FC = () => {
         )}
       </div>
 
-      {/* Product sheet modal */}
+      {/* Product sheet modal — layout type fiche produit (image gauche, infos droite) */}
       <Modal
         isOpen={sheetModalOpen}
         onClose={closeSheet}
-        title={sheetMode === 'edit' ? 'Modifier l\'article' : 'Fiche article'}
-        size="large"
+        title="Fiche article"
+        size="xl"
       >
         {selectedArticle && (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">EAN</label>
-              <p className="text-slate-900 font-mono">{selectedArticle.ean}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Titre</label>
-              {sheetMode === 'edit' ? (
-                <Input
-                  value={editForm.title ?? ''}
-                  onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
-                />
-              ) : (
-                <p className="text-slate-900">{selectedArticle.title}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Marque</label>
-              {sheetMode === 'edit' ? (
-                <Input
-                  value={editForm.brand ?? ''}
-                  onChange={(e) => setEditForm((f) => ({ ...f, brand: e.target.value }))}
-                />
-              ) : (
-                <p className="text-slate-900">{selectedArticle.brand ?? '—'}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Poids</label>
-              {sheetMode === 'edit' ? (
-                <Input
-                  value={editForm.weight ?? ''}
-                  onChange={(e) => setEditForm((f) => ({ ...f, weight: e.target.value }))}
-                  placeholder="ex. 500g, 1kg"
-                />
-              ) : (
-                <p className="text-slate-900">{selectedArticle.weight ?? '—'}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Catégorie</label>
-              {sheetMode === 'edit' ? (
-                <select
-                  value={editForm.category ?? ''}
-                  onChange={(e) =>
-                    setEditForm((f) => ({
-                      ...f,
-                      category: (e.target.value || undefined) as ProductCategory | undefined,
-                    }))
-                  }
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Non renseigné</option>
-                  {PRODUCT_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <p className="text-slate-900">
-                  {selectedArticle.category ? (
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CATEGORY_BADGE_COLORS[selectedArticle.category] ?? 'bg-slate-100 text-slate-700'}`}
-                    >
-                      {selectedArticle.category}
-                    </span>
-                  ) : (
-                    '—'
-                  )}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Image</label>
-              {!galleryOpen ? (
-                <button
-                  type="button"
-                  onClick={openImageGallery}
-                  className="block rounded border border-slate-200 overflow-hidden bg-slate-50 hover:ring-2 hover:ring-[#6F73F3] focus:outline-none focus:ring-2 focus:ring-[#6F73F3]"
-                >
-                  {selectedArticle.imageUrl ? (
-                    <img
-                      src={selectedArticle.imageUrl}
-                      alt=""
-                      className="max-h-40 w-full object-contain"
+          <div className="rounded-2xl overflow-hidden bg-white">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+              {/* Colonne gauche : image */}
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 flex items-center justify-center min-h-[240px]">
+                {!galleryOpen ? (
+                  <button
+                    type="button"
+                    onClick={openImageGallery}
+                    className="w-full h-full min-h-[200px] rounded-lg overflow-hidden flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#6F73F3] focus:ring-offset-2"
+                  >
+                    {selectedArticle.imageUrl ? (
+                      <img
+                        src={selectedArticle.imageUrl}
+                        alt=""
+                        className="max-h-64 w-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-slate-400 text-sm">Cliquer pour ouvrir la galerie</span>
+                    )}
+                  </button>
+                ) : (
+                  <div className="w-full space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-600">
+                        {galleryLoading ? 'Chargement…' : `${galleryUrls.length} image(s)`}
+                      </span>
+                      <Button variant="outline" size="sm" onClick={() => setGalleryOpen(false)}>
+                        Fermer
+                      </Button>
+                    </div>
+                    {!galleryLoading && (
+                      <div className="grid grid-cols-3 gap-2 max-h-56 overflow-y-auto">
+                        {galleryUrls.map(({ url, source }) => (
+                          <button
+                            key={url}
+                            type="button"
+                            onClick={() => selectGalleryImage(url)}
+                            className="rounded-lg border-2 border-slate-200 hover:border-[#6F73F3] overflow-hidden bg-white"
+                          >
+                            <img src={url} alt="" className="w-full aspect-square object-contain" />
+                            <span className="block text-xs text-slate-500 py-0.5">{source}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {!galleryLoading && galleryUrls.length === 0 && (
+                      <p className="text-sm text-slate-500">Aucune image trouvée.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Colonne droite : infos */}
+              <div className="flex flex-col gap-4">
+                <div>
+                  {sheetMode === 'edit' ? (
+                    <Input
+                      value={editForm.title ?? ''}
+                      onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+                      className="text-lg font-semibold border-0 border-b border-slate-200 rounded-none px-0 focus-visible:ring-0"
+                      placeholder="Titre"
                     />
                   ) : (
-                    <div className="max-h-40 h-32 w-full flex items-center justify-center text-slate-400 text-sm">
-                      Cliquer pour ouvrir la galerie (Google + OFF)
-                    </div>
+                    <h2 className="text-lg font-semibold text-slate-900">{selectedArticle.title || '—'}</h2>
                   )}
-                </button>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-600">
-                      {galleryLoading ? 'Chargement…' : `${galleryUrls.length} image(s) — Choisir celle à utiliser`}
-                    </span>
-                    <Button variant="outline" size="sm" onClick={() => setGalleryOpen(false)}>
-                      Fermer la galerie
-                    </Button>
-                  </div>
-                  {!galleryLoading && (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-80 overflow-y-auto">
-                      {galleryUrls.map(({ url, source }) => (
-                        <button
-                          key={url}
-                          type="button"
-                          onClick={() => selectGalleryImage(url)}
-                          className="rounded border-2 border-slate-200 hover:border-[#6F73F3] hover:ring-2 hover:ring-[#6F73F3] overflow-hidden bg-white"
-                        >
-                          <img src={url} alt="" className="w-full aspect-square object-contain" />
-                          <span className="block text-xs text-slate-500 py-0.5">{source}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {!galleryLoading && galleryUrls.length === 0 && (
-                    <p className="text-sm text-slate-500">Aucune image trouvée (Google ni OFF).</p>
+                  {sheetMode === 'edit' ? (
+                    <Input
+                      value={editForm.brand ?? ''}
+                      onChange={(e) => setEditForm((f) => ({ ...f, brand: e.target.value }))}
+                      className="mt-0.5 text-sm text-slate-600 border-0 border-b border-slate-100 rounded-none px-0 focus-visible:ring-0"
+                      placeholder="Marque"
+                    />
+                  ) : (
+                    <p className="text-sm text-slate-600 mt-0.5">{selectedArticle.brand ?? '—'}</p>
                   )}
                 </div>
-              )}
-            </div>
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button variant="outline" onClick={closeSheet}>
-                Fermer
-              </Button>
-              {sheetMode === 'edit' && (
-                <Button onClick={handleSaveSheet} disabled={saving}>
-                  {saving ? 'Enregistrement…' : 'Enregistrer'}
-                </Button>
-              )}
+
+                <div className="text-xs uppercase tracking-wide text-slate-500 font-medium">EAN</div>
+                <p className="text-slate-900 font-mono text-sm">{selectedArticle.ean}</p>
+
+                <div className="flex flex-wrap gap-4">
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-slate-500 font-medium mb-1">Poids</div>
+                    {sheetMode === 'edit' ? (
+                      <Input
+                        value={editForm.weight ?? ''}
+                        onChange={(e) => setEditForm((f) => ({ ...f, weight: e.target.value }))}
+                        placeholder="500g, 1kg"
+                        className="rounded-lg border-slate-200 w-24"
+                      />
+                    ) : (
+                      <p className="text-slate-900 font-medium">{selectedArticle.weight ?? '—'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-slate-500 font-medium mb-1">Catégorie</div>
+                    {sheetMode === 'edit' ? (
+                      <select
+                        value={editForm.category ?? ''}
+                        onChange={(e) =>
+                          setEditForm((f) => ({
+                            ...f,
+                            category: (e.target.value || undefined) as ProductCategory | undefined,
+                          }))
+                        }
+                        className="h-9 rounded-lg border border-slate-200 px-3 text-sm min-w-[140px]"
+                      >
+                        <option value="">Choisir…</option>
+                        {PRODUCT_CATEGORIES.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      selectedArticle.category ? (
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${CATEGORY_BADGE_COLORS[selectedArticle.category] ?? 'bg-slate-100 text-slate-700'}`}
+                        >
+                          {selectedArticle.category}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-auto flex flex-wrap gap-2 pt-4 border-t border-slate-100">
+                  <Button variant="outline" onClick={closeSheet} className="rounded-lg">
+                    Fermer
+                  </Button>
+                  {sheetMode === 'edit' && (
+                    <Button onClick={handleSaveSheet} disabled={saving} className="rounded-lg bg-[#6F73F3] hover:bg-[#5F64EE] text-white">
+                      {saving ? 'Enregistrement…' : 'Enregistrer'}
+                    </Button>
+                  )}
+                  {sheetMode === 'view' && (
+                    <Button onClick={() => setSheetMode('edit')} className="rounded-lg bg-[#6F73F3] hover:bg-[#5F64EE] text-white">
+                      Modifier
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -889,33 +902,7 @@ const Articles: React.FC = () => {
         }
       />
 
-      {/* Popup image (tableau) — comme Affiches */}
-      {imagePopupUrl && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
-          onClick={() => setImagePopupUrl(null)}
-        >
-          <div className="relative max-w-4xl max-h-[90vh] p-4">
-            <img
-              src={imagePopupUrl}
-              alt="Produit"
-              className="max-w-full max-h-[90vh] object-contain rounded-lg"
-              onClick={(e) => e.stopPropagation()}
-            />
-            <button
-              type="button"
-              onClick={() => setImagePopupUrl(null)}
-              className="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75"
-              aria-label="Fermer"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
   );
 };
 
