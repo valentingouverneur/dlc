@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { collection, query, where, limit, getDocs, onSnapshot, deleteDoc, doc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, query, where, limit, getDocs, getDoc, onSnapshot, deleteDoc, doc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { CatalogProduct } from '../types/CatalogProduct';
 import { PRODUCT_CATEGORIES, CATEGORY_BADGE_COLORS, type ProductCategory } from '../constants/categories';
@@ -16,6 +16,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
+import { SafeImage } from '../components/SafeImage';
 import { ImageSearchService } from '../services/ImageSearchService';
 
 type SortKey = 'ean' | 'title' | 'brand' | 'weight' | 'category';
@@ -55,7 +56,7 @@ const Articles: React.FC = () => {
   const [assigningCategories, setAssigningCategories] = useState(false);
   const [assignProgress, setAssignProgress] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
-  const [galleryUrls, setGalleryUrls] = useState<{ url: string; source: 'google' | 'off' | 'affiche' }[]>([]);
+  const [galleryUrls, setGalleryUrls] = useState<{ url: string; source: 'google' | 'off' | 'affiche' | 'bing' }[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
 
   useEffect(() => {
@@ -282,24 +283,43 @@ const Articles: React.FC = () => {
   };
 
   const handleUpdateImages = async () => {
-    const withoutImage = items.filter((r) => !r.imageUrl?.trim());
-    if (withoutImage.length === 0) {
-      setImportMessage('Tous les articles ont déjà une image.');
+    const isOffImageUrl = (url: string | undefined | null) => {
+      if (!url?.trim()) return false;
+      try {
+        const host = new URL(url).hostname.toLowerCase();
+        return host.includes('openfoodfacts');
+      } catch {
+        return false;
+      }
+    };
+
+    // Candidats : sans image OU avec uniquement une image OFF (à upgrader vers Google/Affiche)
+    const candidates = items.filter(
+      (r) => !r.imageUrl?.trim() || isOffImageUrl(r.imageUrl)
+    );
+    if (candidates.length === 0) {
+      setImportMessage('Aucun article sans photo ou avec photo OFF à mettre à jour.');
       setTimeout(() => setImportMessage(null), 4000);
       return;
     }
     const GOOGLE_LIMIT_PER_RUN = 80;
     setUpdatingImages(true);
-    setImagesProgress(`0 / ${withoutImage.length}`);
+    setImagesProgress(`0 / ${candidates.length}`);
     let updated = 0;
     let fromAffiches = 0;
     let googleUsed = 0;
-    for (let i = 0; i < withoutImage.length; i++) {
-      const row = withoutImage[i];
-      setImagesProgress(`${i + 1} / ${withoutImage.length}`);
+    for (let i = 0; i < candidates.length; i++) {
+      const row = candidates[i];
+      setImagesProgress(`${i + 1} / ${candidates.length}`);
+
+      const hadOffImage = isOffImageUrl(row.imageUrl);
       let url: string | null = null;
+
+      // 1) Essayer de réutiliser une image d'affiche (interne)
       url = await getImageFromAffiches(row.ean);
       if (url) fromAffiches++;
+
+      // 2) Essayer Google en priorité
       if (!url && googleUsed < GOOGLE_LIMIT_PER_RUN) {
         try {
           url = await ImageSearchService.searchImage(row.ean, row.title);
@@ -308,7 +328,13 @@ const Articles: React.FC = () => {
           //
         }
       }
-      if (!url) url = await fetchOffImageUrl(row.ean);
+
+      // 3) Si l'article n'avait PAS d'image du tout, on tente OFF en dernier recours
+      if (!url && !hadOffImage) {
+        url = await fetchOffImageUrl(row.ean);
+      }
+
+      // Si on a trouvé mieux (affiche ou Google ou OFF pour les sans image), on met à jour
       if (url) {
         await updateDoc(doc(db, 'productCatalog', row.ean), {
           imageUrl: url,
@@ -331,19 +357,32 @@ const Articles: React.FC = () => {
   /** Récupère marque et poids depuis Open Food Facts (par EAN). Ne remplit que les champs renvoyés par l’API. */
   const openImageGallery = async () => {
     if (!selectedArticle) return;
+    const ean = selectedArticle.ean;
     setGalleryOpen(true);
     setGalleryLoading(true);
     setGalleryUrls([]);
     try {
-      const afficheUrl = await getImageFromAffiches(selectedArticle.ean);
-      const [googleUrls, offUrls] = await Promise.all([
-        ImageSearchService.searchGoogleImageAll(selectedArticle.ean, selectedArticle.title),
-        fetchOffAllImageUrls(selectedArticle.ean),
+      const cacheRef = doc(db, 'galleryCache', ean);
+      const cacheSnap = await getDoc(cacheRef);
+      const cached = cacheSnap.data();
+      const updatedAt = cached?.updatedAt as string | undefined;
+      const GALLERY_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+      if (cached?.urls?.length && updatedAt && Date.now() - new Date(updatedAt).getTime() < GALLERY_CACHE_TTL_MS) {
+        setGalleryUrls(cached.urls as { url: string; source: 'google' | 'off' | 'affiche' | 'bing' }[]);
+        setGalleryLoading(false);
+        return;
+      }
+      const afficheUrl = await getImageFromAffiches(ean);
+      const [googleUrls, bingUrls, offUrls] = await Promise.all([
+        ImageSearchService.searchGoogleImageAll(ean, selectedArticle.title),
+        ImageSearchService.searchBingImageAll(ean, selectedArticle.title),
+        fetchOffAllImageUrls(ean),
       ]);
-      const withSource: { url: string; source: 'google' | 'off' | 'affiche' }[] = [];
+      const withSource: { url: string; source: 'google' | 'off' | 'affiche' | 'bing' }[] = [];
       if (afficheUrl) withSource.push({ url: afficheUrl, source: 'affiche' });
       withSource.push(
         ...googleUrls.map((url) => ({ url, source: 'google' as const })),
+        ...bingUrls.map((url) => ({ url, source: 'bing' as const })),
         ...offUrls.map((url) => ({ url, source: 'off' as const })),
       );
       const seen = new Set<string>();
@@ -353,6 +392,7 @@ const Articles: React.FC = () => {
         return true;
       });
       setGalleryUrls(deduped);
+      await setDoc(cacheRef, { urls: deduped, updatedAt: new Date().toISOString() });
     } catch (err) {
       console.error(err);
     } finally {
@@ -542,13 +582,13 @@ const Articles: React.FC = () => {
     setTimeout(() => setImportMessage(null), 7000);
   };
 
-  /** Met à jour en une passe les articles qui ont au moins un champ manquant (données OFF + catégorie titre + image affiches/Google/OFF). */
+  /** Met à jour les articles qui ont des données manquantes (marque, poids, catégorie) sans toucher aux images. */
   const handleUpdateMissingData = async () => {
     const needsUpdate = items.filter(
-      (r) => !r.brand?.trim() || !r.weight?.trim() || !r.category?.trim() || !r.imageUrl?.trim()
+      (r) => !r.brand?.trim() || !r.weight?.trim() || !r.category?.trim()
     );
     if (needsUpdate.length === 0) {
-      setImportMessage('Aucun article à mettre à jour (toutes les données sont renseignées).');
+      setImportMessage('Aucun article à mettre à jour (marque, poids et catégorie sont renseignés).');
       setTimeout(() => setImportMessage(null), 4000);
       return;
     }
@@ -556,13 +596,11 @@ const Articles: React.FC = () => {
     setUpdatingMissing(true);
     setUpdateProgress(`0 / ${needsUpdate.length}`);
     let updated = 0;
-    let googleUsed = 0;
     for (let i = 0; i < needsUpdate.length; i++) {
       const row = needsUpdate[i];
       setUpdateProgress(`${i + 1} / ${needsUpdate.length}`);
       const updates: Partial<CatalogProduct> = { lastUpdated: new Date().toISOString() };
       const needsData = !row.brand?.trim() || !row.weight?.trim() || !row.category?.trim();
-      const needsImage = !row.imageUrl?.trim();
 
       if (needsData) {
         const off = await fetchOffByEan(row.ean);
@@ -573,20 +611,6 @@ const Articles: React.FC = () => {
           const fromTitle = inferCategoryFromTitle(row.title);
           if (fromTitle) updates.category = fromTitle;
         }
-      }
-
-      if (needsImage) {
-        let url: string | null = await getImageFromAffiches(row.ean);
-        if (!url && googleUsed < GOOGLE_LIMIT_PER_RUN) {
-          try {
-            url = await ImageSearchService.searchImage(row.ean, row.title);
-            if (url) googleUsed++;
-          } catch {
-            //
-          }
-        }
-        if (!url) url = await fetchOffImageUrl(row.ean);
-        if (url) updates.imageUrl = url;
       }
 
       const hasUpdates = Object.keys(updates).length > 1;
@@ -681,15 +705,28 @@ const Articles: React.FC = () => {
           size="sm"
           onClick={handleUpdateMissingData}
           disabled={updatingMissing || items.length === 0}
-          title="Remplir marque, poids, catégorie et image manquants (OFF, affiches, Google)"
+          title="Remplir marque, poids et catégorie manquants (OFF + inférence titre)"
           className="bg-[#6F73F3] hover:bg-[#5F64EE] text-white rounded-lg"
         >
-          {updatingMissing ? `Mise à jour… ${updateProgress ?? ''}` : 'Mettre à jour les données manquantes'}
+          {updatingMissing ? `Mise à jour… ${updateProgress ?? ''}` : 'Mettre à jour les infos manquantes'}
+        </Button>
+        <Button
+          size="sm"
+          onClick={handleUpdateImages}
+          disabled={updatingImages || items.length === 0}
+          title="Remplir uniquement les photos manquantes (affiches, Google, OFF)"
+          className="bg-slate-800 hover:bg-slate-900 text-white rounded-lg"
+        >
+          {updatingImages ? `Mise à jour photos… ${imagesProgress ?? ''}` : 'Mettre à jour les photos manquantes'}
         </Button>
       </div>
-      {(importMessage || (updatingMissing && updateProgress)) && (
+      {(importMessage || (updatingMissing && updateProgress) || (updatingImages && imagesProgress)) && (
         <p className={`text-sm ${importMessage?.startsWith('Erreur') ? 'text-red-600' : 'text-green-600'}`}>
-          {updatingMissing && updateProgress ? `Mise à jour des données… ${updateProgress}` : importMessage}
+          {updatingMissing && updateProgress
+            ? `Mise à jour des données… ${updateProgress}`
+            : updatingImages && imagesProgress
+            ? `Mise à jour des photos… ${imagesProgress}`
+            : importMessage}
         </p>
       )}
 
@@ -726,7 +763,7 @@ const Articles: React.FC = () => {
                         className="block rounded-lg border border-slate-200 overflow-hidden hover:ring-2 hover:ring-[#6F73F3] focus:outline-none focus:ring-2 focus:ring-[#6F73F3]"
                         title="Ouvrir la fiche article"
                       >
-                        <img
+                        <SafeImage
                           src={row.imageUrl}
                           alt=""
                           className="h-12 w-12 object-contain"
@@ -882,7 +919,7 @@ const Articles: React.FC = () => {
                     className="w-full h-full min-h-[200px] rounded-lg overflow-hidden flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#6F73F3] focus:ring-offset-2"
                   >
                     {selectedArticle.imageUrl ? (
-                      <img
+                      <SafeImage
                         src={selectedArticle.imageUrl}
                         alt=""
                         className="max-h-64 w-full object-contain"
@@ -910,7 +947,7 @@ const Articles: React.FC = () => {
                             onClick={() => selectGalleryImage(url)}
                             className="rounded-lg border-2 border-slate-200 hover:border-[#6F73F3] overflow-hidden bg-white"
                           >
-                            <img src={url} alt="" className="w-full aspect-square object-contain" />
+                            <SafeImage src={url} alt="" className="w-full aspect-square object-contain" />
                             <span className="block text-xs text-slate-500 py-0.5">{source}</span>
                           </button>
                         ))}

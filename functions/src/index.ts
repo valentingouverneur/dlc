@@ -207,6 +207,77 @@ Voir dans l'application: https://dlc-watcher.vercel.app
     }
   });
 
+// Domaines autorisés pour le proxy d'images (CORS/CORP ou connexion instable)
+const PROXY_IMAGE_ALLOWED_HOSTS = [
+  'leclerc.com.pl',
+  'www.leclerc.com.pl',
+  'e.leclerc',
+  'cdn.centraleachatexport.com',
+  'images.openfoodfacts.org',
+  'static.openfoodfacts.org',
+  'drive.google.com',
+  'lh3.googleusercontent.com',
+];
+
+function isUrlAllowedForProxy(rawUrl: string): boolean {
+  try {
+    const u = new URL(rawUrl);
+    return PROXY_IMAGE_ALLOWED_HOSTS.some((h) => u.hostname === h || u.hostname.endsWith('.' + h));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Proxy d'images : récupère une image depuis une URL et la renvoie.
+ * Utilisé pour contourner les blocages CORS / CORP (ex: leclerc.com.pl).
+ * Usage : GET /proxyImage?url=https://...
+ */
+export const proxyImage = functions.https.onRequest(async (req, res) => {
+  // CORS
+  res.set('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') {
+    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.status(204).send('');
+    return;
+  }
+  if (req.method !== 'GET') {
+    res.status(405).send('Method Not Allowed');
+    return;
+  }
+  const rawUrl = req.query.url;
+  if (typeof rawUrl !== 'string' || !rawUrl.startsWith('http')) {
+    res.status(400).send('Missing or invalid url query');
+    return;
+  }
+  if (!isUrlAllowedForProxy(rawUrl)) {
+    res.status(403).send('URL not allowed for proxy');
+    return;
+  }
+  try {
+    const response = await fetch(rawUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; DLC-Image-Proxy/1.0)',
+        'Accept': 'image/*',
+      },
+      redirect: 'follow',
+    });
+    if (!response.ok) {
+      res.status(response.status).send(`Upstream error: ${response.status}`);
+      return;
+    }
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    res.set('Content-Type', contentType);
+    res.set('Cache-Control', 'public, max-age=86400'); // 24h
+    const buffer = await response.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  } catch (e: any) {
+    console.error('proxyImage error:', e);
+    res.status(502).send(e?.message || 'Proxy error');
+  }
+});
+
 // Fonction HTTP pour tester manuellement
 export const testEmail = functions.https.onRequest(async (req, res) => {
   console.log('Test d\'envoi d\'email...');

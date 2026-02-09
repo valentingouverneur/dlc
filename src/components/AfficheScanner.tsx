@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { OCRService } from '../services/OCRService';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Affiche } from '../types/Affiche';
 import axios from 'axios';
@@ -20,6 +20,7 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [openFoodData, setOpenFoodData] = useState<any>(null);
+  const [dataFromCatalog, setDataFromCatalog] = useState(false);
   
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
@@ -47,8 +48,8 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
               scannerRef.current.clear();
               scannerRef.current = null;
             }
-            // Récupérer les infos depuis Open Food Facts
-            await fetchOpenFoodData(decodedText);
+            // Récupérer les infos (catalogue articles puis OFF)
+            await fetchProductData(decodedText);
             setStep('result');
           }
         },
@@ -65,31 +66,43 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
     }
   }, [step]);
 
-  // Récupérer les données depuis Open Food Facts
-  const fetchOpenFoodData = async (barcode: string) => {
+  // Récupérer les données : d'abord catalogue articles, sinon Open Food Facts + Google
+  const fetchProductData = async (barcode: string) => {
+    setLoading(true);
     try {
+      const catalogSnap = await getDoc(doc(db, 'productCatalog', barcode));
+      if (catalogSnap.exists()) {
+        const d = catalogSnap.data();
+        const designation = (d.title ?? '').trim() || '';
+        const brand = (d.brand ?? '').trim() || '';
+        const weight = (d.weight ?? '').trim() || '';
+        const imageUrl = (d.imageUrl ?? '').trim() || '';
+        if (designation || imageUrl) {
+          setDataFromCatalog(true);
+          setOpenFoodData({
+            designation: designation || 'Produit catalogue',
+            brand,
+            weight,
+            imageUrl,
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
+      setDataFromCatalog(false);
       const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
-      console.log('Open Food Facts response status:', response.data.status);
       if (response.data.status === 1 && response.data.product) {
         const product = response.data.product;
-        console.log('Product trouvé:', product.product_name);
-        
         const designation = product.product_name_fr || product.product_name || product.generic_name || '';
-        
-        // Rechercher directement une image packshot depuis Google Images (pas d'images Open Food Facts)
-        console.log('Recherche packshot professionnel depuis Google Images...');
         const googleImage = await ImageSearchService.searchImage(barcode, designation);
-        
         setOpenFoodData({
-          designation: designation,
+          designation: designation || '',
           brand: product.brands || '',
           weight: product.quantity || '',
-          imageUrl: googleImage || '', // Utiliser uniquement Google Images
+          imageUrl: googleImage || '',
         });
       } else {
-        console.log('Produit non trouvé dans Open Food Facts pour EAN:', barcode);
-        // Essayer quand même Google Images même si pas trouvé sur Open Food Facts
-        console.log('Recherche image depuis Google Images...');
         const googleImage = await ImageSearchService.searchImage(barcode);
         if (googleImage) {
           setOpenFoodData({
@@ -101,8 +114,9 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
         }
       }
     } catch (err) {
-      console.warn('Erreur Open Food Facts:', err);
-      // Pas grave si ça échoue
+      console.warn('Erreur chargement données produit:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -125,6 +139,7 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
       };
 
       // Ajouter les champs optionnels seulement s'ils existent
+      if (openFoodData?.brand) afficheData.brand = openFoodData.brand;
       if (extractedData?.weight || openFoodData?.weight) {
         afficheData.weight = extractedData?.weight || openFoodData?.weight;
       }
@@ -152,6 +167,7 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
         setEan('');
         setExtractedData(null);
         setOpenFoodData(null);
+        setDataFromCatalog(false);
         setError('');
         setStep('barcode');
         // Réinitialiser le scanner
@@ -214,7 +230,9 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
           {openFoodData && (
             <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-sm text-green-800">
-                ✓ Données récupérées depuis Open Food Facts
+                {dataFromCatalog
+                  ? '✓ Données issues du catalogue articles'
+                  : '✓ Données récupérées depuis Open Food Facts'}
               </p>
             </div>
           )}
@@ -223,15 +241,25 @@ const AfficheScanner: React.FC<AfficheScannerProps> = ({ onClose }) => {
               <label className="text-sm font-medium text-gray-700">
                 Code-barres (EAN) <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                value={ean}
-                onChange={(e) => setEan(e.target.value)}
-                className="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
-                placeholder="13 chiffres"
-                required
-                maxLength={13}
-              />
+              <div className="flex gap-2 mt-1">
+                <input
+                  type="text"
+                  value={ean}
+                  onChange={(e) => setEan(e.target.value)}
+                  className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+                  placeholder="13 chiffres"
+                  required
+                  maxLength={13}
+                />
+                <button
+                  type="button"
+                  onClick={() => ean.length === 13 && fetchProductData(ean)}
+                  disabled={loading || ean.length !== 13}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                >
+                  {loading ? '...' : 'Charger'}
+                </button>
+              </div>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700">Désignation</label>

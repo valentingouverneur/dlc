@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { SafeImage } from '../components/SafeImage';
 import axios from 'axios';
 
 interface ScannerProps {
@@ -20,8 +21,6 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [imageLoading, setImageLoading] = useState(false);
-  const [imageError, setImageError] = useState(false);
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   useEffect(() => {
@@ -61,7 +60,6 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
     setBarcode(decodedText);
     setLoading(true);
     setError('');
-    setImageError(false);
 
     try {
       const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${decodedText}.json`);
@@ -129,16 +127,6 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
     }
   };
 
-  const handleImageLoad = () => {
-    setImageLoading(false);
-    setImageError(false);
-  };
-
-  const handleImageError = () => {
-    setImageLoading(false);
-    setImageError(true);
-  };
-
   return (
     <div className="space-y-4">
       {error && <div className="text-red-500 text-center">{error}</div>}
@@ -155,29 +143,11 @@ const Scanner: React.FC<ScannerProps> = ({ onClose }) => {
         <div className="space-y-4">
           <div className="flex items-center space-x-4">
             {product.image_url && (
-              <div className="relative w-20 h-20">
-                {imageLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-black"></div>
-                  </div>
-                )}
-                {imageError ? (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
-                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                ) : (
-                  <img
-                    src={product.image_url}
-                    alt={product.product_name}
-                    className="w-20 h-20 object-contain"
-                    onLoad={handleImageLoad}
-                    onError={handleImageError}
-                    style={{ display: imageLoading ? 'none' : 'block' }}
-                  />
-                )}
-              </div>
+              <SafeImage
+                src={product.image_url}
+                alt={product.product_name}
+                className="w-20 h-20 object-contain"
+              />
             )}
             <div>
               <h3 className="font-medium text-gray-900">

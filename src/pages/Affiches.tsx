@@ -5,6 +5,8 @@ import { Affiche } from '../types/Affiche';
 import Modal from '../components/Modal';
 import AfficheScanner from '../components/AfficheScanner';
 import ConfirmModal from '../components/ConfirmModal';
+import { SafeImage } from '../components/SafeImage';
+import { getDisplayImageUrl } from '../lib/imageProxy';
 import axios from 'axios';
 import { ImageSearchService } from '../services/ImageSearchService';
 
@@ -343,7 +345,7 @@ const Affiches: React.FC = () => {
                   </td>
                   <td className="px-2 sm:px-4 py-4 whitespace-nowrap">
                     {affiche.imageUrl ? (
-                      <img
+                      <SafeImage
                         src={affiche.imageUrl}
                         alt={affiche.designation}
                         className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded cursor-move hover:opacity-80 transition-opacity border border-gray-200"
@@ -352,11 +354,12 @@ const Affiches: React.FC = () => {
                           setImageModalOpen(true);
                         }}
                         draggable
-                        onDragStart={async (e) => {
+                        onDragStart={async (e: React.DragEvent<HTMLImageElement>) => {
+                          const displayUrl = getDisplayImageUrl(affiche.imageUrl!);
                           try {
-                            const response = await fetch(affiche.imageUrl!);
+                            const response = await fetch(displayUrl);
                             const blob = await response.blob();
-                            const file = new File([blob], `${affiche.ean}.jpg`, { type: 'image/jpeg' });
+                            const file = new File([blob], `${affiche.ean}.jpg`, { type: blob.type || 'image/jpeg' });
                             
                             const dataTransfer = e.dataTransfer;
                             dataTransfer.effectAllowed = 'copy';
@@ -368,7 +371,8 @@ const Affiches: React.FC = () => {
                             }
                             
                             const img = new Image();
-                            img.src = affiche.imageUrl!;
+                            img.crossOrigin = 'anonymous';
+                            img.src = displayUrl;
                             img.onload = () => {
                               const canvas = document.createElement('canvas');
                               canvas.width = img.width;
@@ -484,24 +488,26 @@ const Affiches: React.FC = () => {
       />
 
       {/* Modale pour voir l'image en taille réelle */}
-      {imageModalOpen && (
+      {imageModalOpen && (() => {
+        const displayUrl = getDisplayImageUrl(selectedImageUrl);
+        return (
         <div
           className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
           onClick={() => setImageModalOpen(false)}
         >
           <div className="relative max-w-4xl max-h-[90vh] p-4">
             <img
-              src={selectedImageUrl}
+              src={displayUrl}
               alt="Produit"
               className="max-w-full max-h-[90vh] object-contain rounded-lg cursor-move"
+              referrerPolicy="no-referrer"
               onClick={(e) => e.stopPropagation()}
               draggable
               onDragStart={async (e) => {
                 try {
-                  // Télécharger l'image pour le drag and drop
-                  const response = await fetch(selectedImageUrl);
+                  const response = await fetch(displayUrl);
                   const blob = await response.blob();
-                  const file = new File([blob], 'produit.jpg', { type: 'image/jpeg' });
+                  const file = new File([blob], 'produit.jpg', { type: blob.type || 'image/jpeg' });
                   
                   const dataTransfer = e.dataTransfer;
                   dataTransfer.effectAllowed = 'copy';
@@ -512,9 +518,9 @@ const Affiches: React.FC = () => {
                     dataTransfer.items.add(file);
                   }
                   
-                  // Prévisualisation
                   const img = new Image();
-                  img.src = selectedImageUrl;
+                  img.crossOrigin = 'anonymous';
+                  img.src = displayUrl;
                   img.onload = () => {
                     const canvas = document.createElement('canvas');
                     canvas.width = img.width;
@@ -542,7 +548,8 @@ const Affiches: React.FC = () => {
             </button>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

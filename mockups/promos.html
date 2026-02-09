@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Maquette Promos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-50 text-slate-900">
+    <div class="min-h-screen">
+      <header class="bg-white border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-6 py-5">
+          <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 class="text-2xl font-semibold">Promos</h1>
+              <p class="text-sm text-slate-500">
+                Planning, gestion et historique des promotions par catalogue et TG.
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                Importer
+              </button>
+              <button class="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                Créer une promo
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="max-w-7xl mx-auto px-6 py-6 space-y-8">
+        <!-- Tabs (Wind UI style) -->
+        <div class="flex flex-wrap gap-2">
+          <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white">
+            Planning / Gestion
+          </button>
+          <button class="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            Historique
+          </button>
+        </div>
+
+        <!-- Timeline + Catalogues -->
+        <section class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 class="text-lg font-semibold">Timeline des catalogues</h2>
+              <p class="text-sm text-slate-500">Promos groupées par catalogue (mardi → lundi).</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-xs font-medium text-slate-500">Filtre catalogue :</span>
+              <button class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">Tous</button>
+              <button class="rounded-full bg-slate-900 px-3 py-1 text-xs font-medium text-white">Dépenser Moins 1</button>
+              <button class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">Viande</button>
+              <button class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">Snack</button>
+            </div>
+          </div>
+
+          <div class="mt-5 overflow-x-auto">
+            <div class="min-w-[900px] space-y-3">
+              <div class="flex items-center gap-3">
+                <span class="w-40 text-xs font-semibold text-slate-500">Dépenser Moins 1</span>
+                <div class="flex-1 grid grid-cols-8 gap-2">
+                  <div class="col-span-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+                    27/01 → 08/02
+                    <div class="text-[11px] text-blue-700">TG2, TG4, TG8</div>
+                  </div>
+                  <div class="col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    03/02 → 15/02
+                    <div class="text-[11px] text-amber-700">TG1, TG3</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-3">
+                <span class="w-40 text-xs font-semibold text-slate-500">Promo Viande</span>
+                <div class="flex-1 grid grid-cols-8 gap-2">
+                  <div class="col-span-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-900">
+                    27/01 → 08/02
+                    <div class="text-[11px] text-rose-700">TG6</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-3">
+                <span class="w-40 text-xs font-semibold text-slate-500">Promo Snack</span>
+                <div class="flex-1 grid grid-cols-8 gap-2">
+                  <div class="col-span-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                    03/02 → 15/02
+                    <div class="text-[11px] text-emerald-700">TG7, TG9</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Promo detail + tableur -->
+        <section class="grid gap-6 lg:grid-cols-3">
+          <div class="lg:col-span-2 space-y-4">
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-lg font-semibold">Promo active</h3>
+                  <p class="text-sm text-slate-500">Dépenser Moins 1 • 27/01 → 08/02</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">Catalogue</span>
+                  <span class="rounded-full bg-slate-900 px-2 py-1 text-xs font-medium text-white">En cours</span>
+                </div>
+              </div>
+
+              <div class="mt-4 flex flex-wrap gap-2">
+                <button class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50">Ajouter un article</button>
+                <button class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50">Scanner un EAN</button>
+                <button class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50">Coller une liste</button>
+              </div>
+            </div>
+
+            <!-- Tableur -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm">
+              <div class="flex items-center justify-between p-4 border-b border-slate-200">
+                <h4 class="font-semibold">Articles promo (tableur)</h4>
+                <span class="text-xs text-slate-500">Saisie manuelle • auto-calcul marges</span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-slate-50 text-slate-600">
+                    <tr>
+                      <th class="px-4 py-3 text-left font-medium">EAN</th>
+                      <th class="px-4 py-3 text-left font-medium">Produit</th>
+                      <th class="px-4 py-3 text-left font-medium">TG</th>
+                      <th class="px-4 py-3 text-left font-medium">Prix</th>
+                      <th class="px-4 py-3 text-left font-medium">Coût</th>
+                      <th class="px-4 py-3 text-left font-medium">Marge %</th>
+                      <th class="px-4 py-3 text-left font-medium">Ventes (u)</th>
+                      <th class="px-4 py-3 text-left font-medium">CA</th>
+                      <th class="px-4 py-3 text-left font-medium">Tags</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    <tr>
+                      <td class="px-4 py-3">3564705745153</td>
+                      <td class="px-4 py-3">Pommes risolées 1kg</td>
+                      <td class="px-4 py-3">
+                        <span class="rounded-full bg-slate-100 px-2 py-1 text-xs">TG4</span>
+                      </td>
+                      <td class="px-4 py-3">4,99 €</td>
+                      <td class="px-4 py-3">3,55 €</td>
+                      <td class="px-4 py-3 text-emerald-700 font-medium">28%</td>
+                      <td class="px-4 py-3">180</td>
+                      <td class="px-4 py-3 font-semibold">898 €</td>
+                      <td class="px-4 py-3">
+                        <span class="rounded-full bg-slate-100 px-2 py-1 text-xs">surgelé</span>
+                        <span class="rounded-full bg-slate-100 px-2 py-1 text-xs">pdt</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="px-4 py-3">3564705745112</td>
+                      <td class="px-4 py-3">Noisettes 800g</td>
+                      <td class="px-4 py-3">
+                        <span class="rounded-full bg-slate-100 px-2 py-1 text-xs">TG4</span>
+                      </td>
+                      <td class="px-4 py-3">3,49 €</td>
+                      <td class="px-4 py-3">2,05 €</td>
+                      <td class="px-4 py-3 text-emerald-700 font-medium">41%</td>
+                      <td class="px-4 py-3">210</td>
+                      <td class="px-4 py-3 font-semibold">733 €</td>
+                      <td class="px-4 py-3">
+                        <span class="rounded-full bg-slate-100 px-2 py-1 text-xs">surgelé</span>
+                        <span class="rounded-full bg-slate-100 px-2 py-1 text-xs">fruits</span>
+                      </td>
+                    </tr>
+                    <tr class="bg-amber-50">
+                      <td class="px-4 py-3 text-amber-900">3564705745999</td>
+                      <td class="px-4 py-3 text-amber-900">Produit incomplet</td>
+                      <td class="px-4 py-3">
+                        <span class="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-900">TG2</span>
+                      </td>
+                      <td class="px-4 py-3 text-amber-900">—</td>
+                      <td class="px-4 py-3 text-amber-900">—</td>
+                      <td class="px-4 py-3 text-amber-900">—</td>
+                      <td class="px-4 py-3 text-amber-900">0</td>
+                      <td class="px-4 py-3 text-amber-900">—</td>
+                      <td class="px-4 py-3 text-amber-900">à corriger</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- TG Cards -->
+          <div class="space-y-4">
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div class="flex items-center justify-between">
+                <h4 class="text-sm font-semibold text-slate-500">TG 4</h4>
+                <span class="text-xs text-slate-400">Semaine 05</span>
+              </div>
+              <div class="mt-2 text-2xl font-semibold">12 400 €</div>
+              <div class="text-sm text-emerald-700 font-medium">Marge 23%</div>
+              <div class="mt-4 space-y-2 text-sm">
+                <div class="flex items-center justify-between">
+                  <span>Pommes risolées</span>
+                  <span class="font-medium">180 u</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span>Noisettes</span>
+                  <span class="font-medium">210 u</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div class="flex items-center justify-between">
+                <h4 class="text-sm font-semibold text-slate-500">TG 6</h4>
+                <span class="text-xs text-slate-400">Semaine 05</span>
+              </div>
+              <div class="mt-2 text-2xl font-semibold">8 150 €</div>
+              <div class="text-sm text-emerald-700 font-medium">Marge 31%</div>
+              <div class="mt-4 space-y-2 text-sm">
+                <div class="flex items-center justify-between">
+                  <span>Steak haché Charal</span>
+                  <span class="font-medium">95 u</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span>Viande kebab</span>
+                  <span class="font-medium">120 u</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div class="flex items-center justify-between">
+                <h4 class="text-sm font-semibold text-slate-500">Saisie ventes</h4>
+                <span class="text-xs text-slate-400">Fin de semaine</span>
+              </div>
+              <div class="mt-3 space-y-2">
+                <button class="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                  Ouvrir le formulaire
+                </button>
+                <button class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                  Exporter le rapport
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Historique (preview) -->
+        <section class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 class="text-lg font-semibold">Historique des promos</h3>
+              <p class="text-sm text-slate-500">Recherche par produits, famille, tags.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Rechercher (ex: viande, charal, kebab)"
+                class="w-72 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+              <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white">Rechercher</button>
+            </div>
+          </div>
+
+          <div class="mt-5 grid gap-4 md:grid-cols-2">
+            <div class="rounded-xl border border-slate-200 p-4">
+              <div class="flex items-center justify-between">
+                <div class="font-medium">Promo Viande</div>
+                <span class="text-xs text-slate-500">Jan 27 → Feb 08</span>
+              </div>
+              <div class="mt-2 text-sm text-slate-500">CA 8 150 € • Marge 31%</div>
+              <div class="mt-3 text-sm">
+                <div class="flex items-center justify-between">
+                  <span>Steak haché Charal</span>
+                  <span class="font-medium">95 u</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span>Viande kebab</span>
+                  <span class="font-medium">120 u</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 p-4">
+              <div class="flex items-center justify-between">
+                <div class="font-medium">Dépenser Moins 1</div>
+                <span class="text-xs text-slate-500">Jan 27 → Feb 08</span>
+              </div>
+              <div class="mt-2 text-sm text-slate-500">CA 12 400 € • Marge 23%</div>
+              <div class="mt-3 text-sm">
+                <div class="flex items-center justify-between">
+                  <span>Pommes risolées</span>
+                  <span class="font-medium">180 u</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span>Noisettes</span>
+                  <span class="font-medium">210 u</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

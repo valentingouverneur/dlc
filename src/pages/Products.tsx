@@ -4,6 +4,7 @@ import { db } from '../config/firebase';
 import { Link } from 'react-router-dom';
 import { Product } from '../types/Product';
 import ConfirmModal from '../components/ConfirmModal';
+import { SafeImage } from '../components/SafeImage';
 
 const Products: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -70,7 +71,7 @@ const Products: React.FC = () => {
             <div className="flex items-center justify-between gap-2">
               <Link to={`/product/${product.id}`} className="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
                 {product.imageUrl ? (
-                  <img
+                  <SafeImage
                     src={product.imageUrl}
                     alt={product.name}
                     className="w-16 h-16 object-contain"

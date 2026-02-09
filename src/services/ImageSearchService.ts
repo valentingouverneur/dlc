@@ -10,6 +10,9 @@ export class ImageSearchService {
   private static readonly GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || '';
   private static readonly GOOGLE_CSE_ID = import.meta.env.VITE_GOOGLE_CSE_ID || '';
 
+  // Bing Image Search API (Azure) - quota gratuit ~1000 req/mois
+  private static readonly BING_API_KEY = import.meta.env.VITE_BING_API_KEY || '';
+
   /**
    * Recherche une image depuis Google Images via Custom Search API
    * Privilégie les packshots professionnels plutôt que les photos utilisateurs
@@ -242,6 +245,48 @@ export class ImageSearchService {
         }
       }
       return urls;
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Retourne des URLs d'images depuis Bing Image Search (pour galerie).
+   * Optionnel : ajouter VITE_BING_API_KEY dans .env (clé Azure).
+   */
+  static async searchBingImageAll(ean: string, productName?: string): Promise<string[]> {
+    if (!this.BING_API_KEY) return [];
+    const excludedDomains = [
+      'openfoodfacts', 'flickr', 'pinterest', 'instagram', 'facebook',
+      'tumblr', 'imgur', 'reddit',
+    ];
+    try {
+      const queries = [ean];
+      if (productName) {
+        queries.push(`${productName} ${ean}`);
+        queries.push(productName);
+      }
+      const allUrls: string[] = [];
+      for (const q of queries) {
+        const res = await axios.get('https://api.bing.microsoft.com/v7.0/images/search', {
+          params: { q, count: 10 },
+          headers: { 'Ocp-Apim-Subscription-Key': this.BING_API_KEY },
+        });
+        const items = res.data?.value ?? [];
+        for (const item of items) {
+          const link = item.contentUrl;
+          if (!link) continue;
+          try {
+            const domain = new URL(link).hostname.toLowerCase();
+            if (excludedDomains.some((ex) => domain.includes(ex))) continue;
+            allUrls.push(link);
+          } catch {
+            continue;
+          }
+        }
+        if (allUrls.length > 0) break;
+      }
+      return allUrls;
     } catch {
       return [];
     }

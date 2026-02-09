@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Product } from '../types/Product';
+import { SafeImage } from '../components/SafeImage';
 
 const ProductDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -192,7 +193,7 @@ const ProductDetails: React.FC = () => {
                     <div className="text-center">
                       {newImage ? (
                         <div className="relative inline-block">
-                          <img
+                          <SafeImage
                             src={newImage}
                             alt="Nouvelle photo"
                             className="w-32 h-32 object-contain rounded-lg"
@@ -208,7 +209,7 @@ const ProductDetails: React.FC = () => {
                       ) : (
                         <div>
                           {product.imageUrl && (
-                            <img
+                            <SafeImage
                               src={product.imageUrl}
                               alt={product.name}
                               className="w-32 h-32 object-contain rounded-lg mx-auto mb-2"
@@ -287,7 +288,7 @@ const ProductDetails: React.FC = () => {
             <div className="space-y-6">
               <div className="flex items-center space-x-4">
                 {product.imageUrl && (
-                  <img
+                  <SafeImage
                     src={product.imageUrl}
                     alt={product.name}
                     className="w-32 h-32 object-contain rounded-lg"

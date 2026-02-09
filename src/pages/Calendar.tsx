@@ -3,6 +3,7 @@ import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase
 import { db } from '../config/firebase';
 import { Link, useNavigate } from 'react-router-dom';
 import ConfirmModal from '../components/ConfirmModal';
+import { SafeImage } from '../components/SafeImage';
 import ExpiryNotifications from '../components/ExpiryNotifications';
 import { NotificationService } from '../services/NotificationService';
 import { Product } from '../types/Product';
@@ -131,7 +132,7 @@ const Calendar: React.FC = () => {
                         <div className="flex items-center justify-between">
                           <Link to={`/product/${product.id}`} className="flex items-center space-x-4 flex-1">
                             {product.imageUrl ? (
-                              <img
+                              <SafeImage
                                 src={product.imageUrl}
                                 alt={product.name}
                                 className="w-16 h-16 object-contain"

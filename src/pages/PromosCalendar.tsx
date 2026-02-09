@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { Link } from 'react-router-dom';
 import { db } from '../config/firebase';
+import { SafeImage } from '../components/SafeImage';
 
 type PromoItem = {
   ean?: string;
@@ -165,7 +166,7 @@ const PromosCalendar: React.FC = () => {
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2">
                             {item.imageUrl ? (
-                              <img src={item.imageUrl} alt="" className="h-8 w-8 rounded border object-contain" />
+                              <SafeImage src={item.imageUrl} alt="" className="h-8 w-8 rounded border object-contain" />
                             ) : (
                               <div className="h-8 w-8 rounded border border-dashed border-slate-200 bg-slate-50" />
                             )}

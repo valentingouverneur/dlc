@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { ImageSearchService } from '../services/ImageSearchService';
 import Modal from '../components/Modal';
 import PromoScanner from '../components/PromoScanner';
+import { SafeImage } from '../components/SafeImage';
 
 type PromoItem = {
   id: string;
@@ -670,7 +671,7 @@ const Promos: React.FC = () => {
                       <td className="px-4 py-3 min-w-[220px]" colSpan={2}>
                         <div className="flex items-center gap-3">
                           {groupImage ? (
-                            <img src={groupImage} alt="" className="h-9 w-9 rounded-md border object-contain" />
+                            <SafeImage src={groupImage} alt="" className="h-9 w-9 rounded-md border object-contain" />
                           ) : (
                             <div className="h-9 w-9 rounded-md border border-dashed border-slate-200 bg-slate-50" />
                           )}
@@ -737,7 +738,7 @@ const Promos: React.FC = () => {
                             <td className="px-4 py-3 min-w-[220px]">
                               <div className="flex items-center gap-3">
                                 {item.imageUrl ? (
-                                  <img src={item.imageUrl} alt="" className="h-9 w-9 rounded-md border object-contain" />
+                                  <SafeImage src={item.imageUrl} alt="" className="h-9 w-9 rounded-md border object-contain" />
                                 ) : (
                                   <div className="h-9 w-9 rounded-md border border-dashed border-slate-200 bg-slate-50" />
                                 )}
@@ -836,7 +837,7 @@ const Promos: React.FC = () => {
                     <td className="px-4 py-3 min-w-[220px]">
                       <div className="flex items-center gap-3">
                         {item.imageUrl ? (
-                          <img src={item.imageUrl} alt="" className="h-9 w-9 rounded-md border object-contain" />
+                          <SafeImage src={item.imageUrl} alt="" className="h-9 w-9 rounded-md border object-contain" />
                         ) : (
                           <div className="h-9 w-9 rounded-md border border-dashed border-slate-200 bg-slate-50" />
                         )}
@@ -980,7 +981,7 @@ const Promos: React.FC = () => {
                       <td className="px-2 py-2" colSpan={2}>
                         <div className="flex items-center gap-2">
                           {groupImage ? (
-                            <img src={groupImage} alt="" className="h-8 w-8 rounded border object-contain" />
+                            <SafeImage src={groupImage} alt="" className="h-8 w-8 rounded border object-contain" />
                           ) : (
                             <div className="h-8 w-8 rounded border border-dashed border-slate-200 bg-slate-50" />
                           )}
@@ -1046,7 +1047,7 @@ const Promos: React.FC = () => {
                             </td>
                             <td className="px-2 py-2">
                               {item.imageUrl ? (
-                                <img src={item.imageUrl} alt="" className="h-8 w-8 rounded border object-contain" />
+                                <SafeImage src={item.imageUrl} alt="" className="h-8 w-8 rounded border object-contain" />
                               ) : (
                                 <div className="h-8 w-8 rounded border border-dashed border-slate-200 bg-slate-50" />
                               )}
@@ -1143,7 +1144,7 @@ const Promos: React.FC = () => {
                     </td>
                     <td className="px-2 py-2">
                       {item.imageUrl ? (
-                        <img src={item.imageUrl} alt="" className="h-8 w-8 rounded border object-contain" />
+                        <SafeImage src={item.imageUrl} alt="" className="h-8 w-8 rounded border object-contain" />
                       ) : (
                         <div className="h-8 w-8 rounded border border-dashed border-slate-200 bg-slate-50" />
                       )}
@@ -1250,7 +1251,7 @@ const Promos: React.FC = () => {
               {selectedItems.map((item) => (
                 <div key={item.id} className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm">
                   {item.imageUrl ? (
-                    <img src={item.imageUrl} alt="" className="h-9 w-9 rounded-md border object-contain" />
+                    <SafeImage src={item.imageUrl} alt="" className="h-9 w-9 rounded-md border object-contain" />
                   ) : (
                     <div className="h-9 w-9 rounded-md border border-dashed border-slate-200 bg-slate-50" />
                   )}

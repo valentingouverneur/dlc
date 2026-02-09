@@ -1,0 +1,12 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Images produits du catalogue : lecture pour tous, écriture pour tous (à restreindre en prod si besoin)
+    match /product-images/{fileName} {
+      allow read, write: if true;
+    }
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
